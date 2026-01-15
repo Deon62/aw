@@ -529,3 +529,46 @@ table tr:hover {
     font-weight: normal;
     margin-left: 4px;
 }
+
+/* General Form Styles (for modals) */
+.modal-body .form-group {
+    margin-bottom: 20px;
+}
+
+.modal-body label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+}
+
+.modal-body input[type="text"],
+.modal-body input[type="email"],
+.modal-body input[type="password"],
+.modal-body select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.modal-body input[type="text"]:focus,
+.modal-body input[type="email"]:focus,
+.modal-body input[type="password"]:focus,
+.modal-body select:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.modal-body input[type="checkbox"] {
+    margin-right: 8px;
+}
+
+.modal-body input[type="checkbox"] + label {
+    display: inline;
+    font-weight: normal;
+    margin-left: 4px;
+}

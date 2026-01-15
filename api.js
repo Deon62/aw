@@ -133,5 +133,45 @@ const api = {
     sendToUser: (data) => apiRequest('/admin/notifications/send', { 
         method: 'POST', 
         body: JSON.stringify(data)
-    })
+    }),
+
+    // Admin Management
+    getAdmins: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/admins${queryString ? '?' + queryString : ''}`);
+    },
+    getAdmin: (id) => apiRequest(`/admin/admins/${id}`),
+    createAdmin: (data) => apiRequest('/admin/admins', { 
+        method: 'POST', 
+        body: JSON.stringify(data)
+    }),
+    updateAdmin: (id, data) => apiRequest(`/admin/admins/${id}`, { 
+        method: 'PUT', 
+        body: JSON.stringify(data)
+    }),
+    deleteAdmin: (id) => apiRequest(`/admin/admins/${id}`, { method: 'DELETE' }),
+    changeAdminPassword: (id, data) => apiRequest(`/admin/admins/${id}/password`, { 
+        method: 'PUT', 
+        body: JSON.stringify(data)
+    }),
+    activateAdmin: (id) => apiRequest(`/admin/admins/${id}/activate`, { method: 'PUT' }),
+    deactivateAdmin: (id) => apiRequest(`/admin/admins/${id}/deactivate`, { method: 'PUT' }),
+    
+    // Own Profile Management
+    updateOwnProfile: (data) => apiRequest('/admin/profile', { 
+        method: 'PUT', 
+        body: JSON.stringify(data)
+    }),
+    changeOwnPassword: (data) => apiRequest('/admin/change-password', { 
+        method: 'PUT', 
+        body: JSON.stringify(data)
+    }),
+
+    // Payment Methods
+    getPaymentMethods: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/payment-methods${queryString ? '?' + queryString : ''}`);
+    },
+    getPaymentMethod: (id) => apiRequest(`/admin/payment-methods/${id}`),
+    deletePaymentMethod: (id) => apiRequest(`/admin/payment-methods/${id}`, { method: 'DELETE' })
 };

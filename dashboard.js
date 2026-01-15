@@ -43,6 +43,13 @@ async function loadAdminInfo() {
             const initials = (admin.full_name || admin.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
             profileAvatar.textContent = initials;
             console.log('Admin profile loaded successfully');
+            
+            // Show/hide admin management based on role
+            const adminsNavItem = document.getElementById('adminsNavItem');
+            if (adminsNavItem && admin.role === 'super_admin') {
+                adminsNavItem.style.display = 'block';
+            }
+            
             return;
         }
     } catch (error) {
@@ -57,6 +64,13 @@ async function loadAdminInfo() {
                 const initials = (adminInfo.full_name || adminInfo.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                 profileAvatar.textContent = initials;
                 console.log('Admin profile loaded from localStorage');
+                
+                // Show/hide admin management based on role
+                const adminsNavItem = document.getElementById('adminsNavItem');
+                if (adminsNavItem && adminInfo.role === 'super_admin') {
+                    adminsNavItem.style.display = 'block';
+                }
+                
                 return;
             }
         } catch (localError) {
@@ -118,6 +132,24 @@ function setupProfileDropdown() {
         localStorage.removeItem('admin_info');
         window.location.href = 'index.html';
     });
+
+    // Profile link
+    const profileLink = document.getElementById('profileLink');
+    if (profileLink) {
+        profileLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            loadMyProfile();
+        });
+    }
+
+    // Change password link
+    const changePasswordLink = document.getElementById('changePasswordLink');
+    if (changePasswordLink) {
+        changePasswordLink.addEventListener('click', (e) => {
+            e.preventDefault();
+            showChangeOwnPasswordModal();
+        });
+    }
 }
 
 // Load page content
@@ -134,12 +166,16 @@ function loadPage(page) {
         clients: 'Clients',
         cars: 'Cars',
         feedback: 'Feedback',
-        notifications: 'Notifications'
+        notifications: 'Notifications',
+        'payment-methods': 'Payment Methods',
+        admins: 'Admins'
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
     // Show selected page
-    const pageElement = document.getElementById(`${page}Page`);
+    // Convert page name with hyphens to camelCase for element ID
+    const pageId = page.replace(/-([a-z])/g, (g) => g[1].toUpperCase()) + 'Page';
+    const pageElement = document.getElementById(pageId);
     if (pageElement) {
         pageElement.style.display = 'block';
     }
@@ -165,6 +201,14 @@ function loadPage(page) {
             break;
         case 'notifications':
             // Notifications page doesn't need loading
+            break;
+        case 'admins':
+            setupAdminSearch();
+            loadAdmins();
+            break;
+        case 'payment-methods':
+            setupPaymentMethodSearch();
+            loadPaymentMethods();
             break;
     }
 }
@@ -1032,5 +1076,814 @@ async function loadFeedback() {
     } catch (error) {
         console.error('Error loading feedback:', error);
         content.innerHTML = '<div class="empty-state">Error loading feedback</div>';
+    }
+}
+
+// ==================== ADMIN MANAGEMENT ====================
+
+// Admin management state
+let currentAdminSearch = '';
+let currentAdminRoleFilter = '';
+let currentAdminStatusFilter = '';
+let adminSearchTimeout = null;
+
+// Setup admin search and filters
+function setupAdminSearch() {
+    const searchInput = document.getElementById('adminSearch');
+    const roleFilter = document.getElementById('adminRoleFilter');
+    const statusFilter = document.getElementById('adminStatusFilter');
+    
+    if (searchInput && !searchInput.oninput) {
+        searchInput.oninput = (e) => {
+            clearTimeout(adminSearchTimeout);
+            adminSearchTimeout = setTimeout(() => {
+                currentAdminSearch = e.target.value;
+                loadAdmins();
+            }, 300);
+        };
+    }
+    
+    if (roleFilter && !roleFilter.onchange) {
+        roleFilter.onchange = (e) => {
+            currentAdminRoleFilter = e.target.value;
+            loadAdmins();
+        };
+    }
+    
+    if (statusFilter && !statusFilter.onchange) {
+        statusFilter.onchange = (e) => {
+            currentAdminStatusFilter = e.target.value;
+            loadAdmins();
+        };
+    }
+}
+
+// Load admins
+async function loadAdmins() {
+    const content = document.getElementById('adminsContent');
+    
+    setupAdminSearch();
+    
+    try {
+        const params = { limit: 50 };
+        if (currentAdminSearch) {
+            params.search = currentAdminSearch;
+        }
+        if (currentAdminRoleFilter) {
+            params.role = currentAdminRoleFilter;
+        }
+        if (currentAdminStatusFilter) {
+            params.is_active = currentAdminStatusFilter === 'true';
+        }
+        
+        const data = await api.getAdmins(params);
+        if (data.admins && data.admins.length > 0) {
+            content.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Email</th>
+                                <th>Role</th>
+                                <th>Status</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.admins.map(admin => `
+                                <tr>
+                                    <td>${admin.full_name}</td>
+                                    <td>${admin.email}</td>
+                                    <td>${admin.role}</td>
+                                    <td><span class="status-badge ${admin.is_active ? 'active' : 'inactive'}">${admin.is_active ? 'Active' : 'Inactive'}</span></td>
+                                    <td>${new Date(admin.created_at).toLocaleDateString()}</td>
+                                    <td>
+                                        <button class="btn btn-primary btn-small" onclick="viewAdminDetails(${admin.id})">View</button>
+                                        ${admin.is_active 
+                                            ? `<button class="btn btn-secondary btn-small" onclick="deactivateAdmin(${admin.id})">Deactivate</button>`
+                                            : `<button class="btn btn-primary btn-small" onclick="activateAdmin(${admin.id})">Activate</button>`
+                                        }
+                                        <button class="btn btn-danger btn-small" onclick="deleteAdminConfirm(${admin.id}, '${admin.full_name}')">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            content.innerHTML = '<div class="empty-state">No admins found</div>';
+        }
+    } catch (error) {
+        console.error('Error loading admins:', error);
+        if (error.message.includes('super_admin')) {
+            content.innerHTML = '<div class="empty-state">Only super admins can access this page</div>';
+        } else {
+            content.innerHTML = '<div class="empty-state">Error loading admins</div>';
+        }
+    }
+}
+
+// Back to admins list
+function backToAdminsList() {
+    loadPage('admins');
+}
+
+// View admin details
+async function viewAdminDetails(adminId) {
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    
+    const adminDetailPage = document.getElementById('adminDetailPage');
+    const adminDetailContent = document.getElementById('adminDetailContent');
+    const adminDetailTitle = document.getElementById('adminDetailTitle');
+    
+    adminDetailPage.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Admin Details';
+    adminDetailContent.innerHTML = '<div class="loading">Loading admin details...</div>';
+    
+    try {
+        const admin = await api.getAdmin(adminId);
+        adminDetailTitle.textContent = admin.full_name || 'Admin Details';
+        
+        adminDetailContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="host-detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Name:</div>
+                        <div class="detail-value">${admin.full_name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Email:</div>
+                        <div class="detail-value">${admin.email || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Role:</div>
+                        <div class="detail-value">${admin.role || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value">
+                            <span class="status-badge ${admin.is_active ? 'active' : 'inactive'}">
+                                ${admin.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="host-detail-section">
+                    <h3>Account Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Created:</div>
+                        <div class="detail-value">${new Date(admin.created_at).toLocaleString()}</div>
+                    </div>
+                    ${admin.updated_at ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Last Updated:</div>
+                        <div class="detail-value">${new Date(admin.updated_at).toLocaleString()}</div>
+                    </div>
+                    ` : ''}
+                </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
+                <button class="btn btn-primary" onclick="showEditAdminForm(${admin.id})">Edit Admin</button>
+                <button class="btn btn-secondary" onclick="showChangeAdminPasswordModal(${admin.id})">Change Password</button>
+                ${admin.is_active 
+                    ? `<button class="btn btn-secondary" onclick="deactivateAdmin(${admin.id}, true)">Deactivate</button>`
+                    : `<button class="btn btn-primary" onclick="activateAdmin(${admin.id}, true)">Activate</button>`
+                }
+                <button class="btn btn-danger" onclick="deleteAdminConfirm(${admin.id}, '${admin.full_name}', true)">Delete</button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading admin details:', error);
+        adminDetailContent.innerHTML = `<div class="empty-state">Error loading admin details: ${error.message}</div>`;
+    }
+}
+
+// Show create admin form
+function showCreateAdminForm() {
+    document.getElementById('adminModalTitle').textContent = 'Create Admin';
+    document.getElementById('adminFormId').value = '';
+    document.getElementById('adminForm').reset();
+    document.getElementById('adminPasswordFields').style.display = 'block';
+    document.getElementById('adminPassword').required = true;
+    document.getElementById('adminPasswordConfirm').required = true;
+    document.getElementById('adminRole').value = 'admin';
+    document.getElementById('adminIsActive').checked = true;
+    document.getElementById('adminFormError').textContent = '';
+    document.getElementById('adminModal').style.display = 'flex';
+}
+
+// Show edit admin form
+async function showEditAdminForm(adminId) {
+    try {
+        const admin = await api.getAdmin(adminId);
+        document.getElementById('adminModalTitle').textContent = 'Edit Admin';
+        document.getElementById('adminFormId').value = adminId;
+        document.getElementById('adminFullName').value = admin.full_name || '';
+        document.getElementById('adminEmail').value = admin.email || '';
+        document.getElementById('adminPasswordFields').style.display = 'none';
+        document.getElementById('adminPassword').required = false;
+        document.getElementById('adminPasswordConfirm').required = false;
+        document.getElementById('adminRole').value = admin.role || 'admin';
+        document.getElementById('adminIsActive').checked = admin.is_active;
+        document.getElementById('adminFormError').textContent = '';
+        document.getElementById('adminModal').style.display = 'flex';
+    } catch (error) {
+        alert('Error loading admin: ' + error.message);
+    }
+}
+
+// Save admin (create or update)
+async function saveAdmin(event) {
+    event.preventDefault();
+    
+    const adminId = document.getElementById('adminFormId').value;
+    const errorDiv = document.getElementById('adminFormError');
+    const saveBtn = document.getElementById('saveAdminBtn');
+    
+    const fullName = document.getElementById('adminFullName').value.trim();
+    const email = document.getElementById('adminEmail').value.trim();
+    const password = document.getElementById('adminPassword').value;
+    const passwordConfirm = document.getElementById('adminPasswordConfirm').value;
+    const role = document.getElementById('adminRole').value;
+    const isActive = document.getElementById('adminIsActive').checked;
+    
+    errorDiv.textContent = '';
+    
+    // Validation
+    if (!fullName || !email) {
+        errorDiv.textContent = 'Please fill in all required fields.';
+        return;
+    }
+    
+    if (!adminId && (!password || password.length < 8)) {
+        errorDiv.textContent = 'Password must be at least 8 characters.';
+        return;
+    }
+    
+    if (!adminId && password !== passwordConfirm) {
+        errorDiv.textContent = 'Passwords do not match.';
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Saving...';
+    
+    try {
+        if (adminId) {
+            // Update admin
+            const updateData = {
+                full_name: fullName,
+                email: email,
+                role: role,
+                is_active: isActive
+            };
+            await api.updateAdmin(adminId, updateData);
+            alert('Admin updated successfully');
+            closeAdminModal();
+            viewAdminDetails(adminId);
+        } else {
+            // Create admin
+            const createData = {
+                full_name: fullName,
+                email: email,
+                password: password,
+                password_confirmation: passwordConfirm,
+                role: role,
+                is_active: isActive
+            };
+            await api.createAdmin(createData);
+            alert('Admin created successfully');
+            closeAdminModal();
+            loadAdmins();
+        }
+    } catch (error) {
+        errorDiv.textContent = error.message || 'Error saving admin';
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Save';
+    }
+}
+
+// Close admin modal
+function closeAdminModal() {
+    document.getElementById('adminModal').style.display = 'none';
+}
+
+// Deactivate admin
+async function deactivateAdmin(adminId, reloadAfter = false) {
+    if (!confirm('Are you sure you want to deactivate this admin account?')) {
+        return;
+    }
+    
+    try {
+        await api.deactivateAdmin(adminId);
+        alert('Admin deactivated successfully');
+        if (reloadAfter) {
+            viewAdminDetails(adminId);
+        } else {
+            loadAdmins();
+        }
+    } catch (error) {
+        alert('Error deactivating admin: ' + error.message);
+    }
+}
+
+// Activate admin
+async function activateAdmin(adminId, reloadAfter = false) {
+    if (!confirm('Are you sure you want to activate this admin account?')) {
+        return;
+    }
+    
+    try {
+        await api.activateAdmin(adminId);
+        alert('Admin activated successfully');
+        if (reloadAfter) {
+            viewAdminDetails(adminId);
+        } else {
+            loadAdmins();
+        }
+    } catch (error) {
+        alert('Error activating admin: ' + error.message);
+    }
+}
+
+// Delete admin confirmation
+function deleteAdminConfirm(adminId, adminName, reloadAfter = false) {
+    if (!confirm(`Are you sure you want to permanently delete admin "${adminName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    deleteAdmin(adminId, reloadAfter);
+}
+
+// Delete admin
+async function deleteAdmin(adminId, reloadAfter = false) {
+    try {
+        await api.deleteAdmin(adminId);
+        alert('Admin deleted successfully');
+        if (reloadAfter) {
+            backToAdminsList();
+        } else {
+            loadAdmins();
+        }
+    } catch (error) {
+        alert('Error deleting admin: ' + error.message);
+    }
+}
+
+// Show change admin password modal
+function showChangeAdminPasswordModal(adminId) {
+    document.getElementById('passwordModalTitle').textContent = 'Change Admin Password';
+    document.getElementById('passwordFormType').value = 'admin';
+    document.getElementById('passwordFormAdminId').value = adminId;
+    document.getElementById('currentPasswordField').style.display = 'none';
+    document.getElementById('currentPassword').required = false;
+    document.getElementById('passwordForm').reset();
+    document.getElementById('passwordFormError').textContent = '';
+    document.getElementById('passwordModal').style.display = 'flex';
+}
+
+// Show change own password modal
+function showChangeOwnPasswordModal() {
+    document.getElementById('passwordModalTitle').textContent = 'Change My Password';
+    document.getElementById('passwordFormType').value = 'own';
+    document.getElementById('passwordFormAdminId').value = '';
+    document.getElementById('currentPasswordField').style.display = 'block';
+    document.getElementById('currentPassword').required = true;
+    document.getElementById('passwordForm').reset();
+    document.getElementById('passwordFormError').textContent = '';
+    document.getElementById('passwordModal').style.display = 'flex';
+}
+
+// Save password
+async function savePassword(event) {
+    event.preventDefault();
+    
+    const formType = document.getElementById('passwordFormType').value;
+    const adminId = document.getElementById('passwordFormAdminId').value;
+    const errorDiv = document.getElementById('passwordFormError');
+    const saveBtn = document.getElementById('savePasswordBtn');
+    
+    const currentPassword = document.getElementById('currentPassword').value;
+    const newPassword = document.getElementById('newPassword').value;
+    const newPasswordConfirm = document.getElementById('newPasswordConfirm').value;
+    
+    errorDiv.textContent = '';
+    
+    // Validation
+    if (formType === 'own' && !currentPassword) {
+        errorDiv.textContent = 'Please enter your current password.';
+        return;
+    }
+    
+    if (!newPassword || newPassword.length < 8) {
+        errorDiv.textContent = 'New password must be at least 8 characters.';
+        return;
+    }
+    
+    if (newPassword !== newPasswordConfirm) {
+        errorDiv.textContent = 'New passwords do not match.';
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Changing...';
+    
+    try {
+        if (formType === 'own') {
+            const data = {
+                current_password: currentPassword,
+                new_password: newPassword,
+                new_password_confirmation: newPasswordConfirm
+            };
+            await api.changeOwnPassword(data);
+            alert('Password changed successfully');
+            closePasswordModal();
+        } else {
+            const data = {
+                new_password: newPassword,
+                new_password_confirmation: newPasswordConfirm
+            };
+            await api.changeAdminPassword(adminId, data);
+            alert('Admin password changed successfully');
+            closePasswordModal();
+            viewAdminDetails(adminId);
+        }
+    } catch (error) {
+        errorDiv.textContent = error.message || 'Error changing password';
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Change Password';
+    }
+}
+
+// Close password modal
+function closePasswordModal() {
+    document.getElementById('passwordModal').style.display = 'none';
+}
+
+// Load my profile
+async function loadMyProfile() {
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    
+    const myProfilePage = document.getElementById('myProfilePage');
+    const myProfileContent = document.getElementById('myProfileContent');
+    
+    myProfilePage.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'My Profile';
+    myProfileContent.innerHTML = '<div class="loading">Loading profile...</div>';
+    
+    try {
+        const admin = await api.getCurrentAdmin();
+        
+        myProfileContent.innerHTML = `
+            <div style="max-width: 600px;">
+                <div class="host-detail-section">
+                    <h3>Profile Information</h3>
+                    <form id="myProfileForm" onsubmit="saveMyProfile(event)">
+                        <div class="form-group">
+                            <label for="myProfileFullName">Full Name *</label>
+                            <input type="text" id="myProfileFullName" value="${admin.full_name || ''}" required maxlength="255">
+                        </div>
+                        <div class="form-group">
+                            <label for="myProfileEmail">Email *</label>
+                            <input type="email" id="myProfileEmail" value="${admin.email || ''}" required>
+                        </div>
+                        <div class="form-group">
+                            <label>Role</label>
+                            <div class="detail-value" style="padding: 10px 0;">${admin.role || 'N/A'}</div>
+                        </div>
+                        <div class="form-group">
+                            <label>Status</label>
+                            <div style="padding: 10px 0;">
+                                <span class="status-badge ${admin.is_active ? 'active' : 'inactive'}">
+                                    ${admin.is_active ? 'Active' : 'Inactive'}
+                                </span>
+                            </div>
+                        </div>
+                        <div id="myProfileError" style="color: #d32f2f; margin-bottom: 15px;"></div>
+                        <div class="action-buttons">
+                            <button type="submit" class="btn btn-primary">Update Profile</button>
+                            <button type="button" class="btn btn-secondary" onclick="showChangeOwnPasswordModal()">Change Password</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading profile:', error);
+        myProfileContent.innerHTML = `<div class="empty-state">Error loading profile: ${error.message}</div>`;
+    }
+}
+
+// Save my profile
+async function saveMyProfile(event) {
+    event.preventDefault();
+    
+    const errorDiv = document.getElementById('myProfileError');
+    const saveBtn = event.target.querySelector('button[type="submit"]');
+    
+    const fullName = document.getElementById('myProfileFullName').value.trim();
+    const email = document.getElementById('myProfileEmail').value.trim();
+    
+    if (!fullName || !email) {
+        errorDiv.textContent = 'Please fill in all required fields.';
+        return;
+    }
+    
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Updating...';
+    errorDiv.textContent = '';
+    
+    try {
+        await api.updateOwnProfile({
+            full_name: fullName,
+            email: email
+        });
+        alert('Profile updated successfully');
+        await loadAdminInfo();
+        loadMyProfile();
+    } catch (error) {
+        errorDiv.textContent = error.message || 'Error updating profile';
+    } finally {
+        saveBtn.disabled = false;
+        saveBtn.textContent = 'Update Profile';
+    }
+}
+
+// Setup modal close on outside click
+document.addEventListener('DOMContentLoaded', () => {
+    const adminModal = document.getElementById('adminModal');
+    const passwordModal = document.getElementById('passwordModal');
+    
+    if (adminModal) {
+        adminModal.addEventListener('click', (e) => {
+            if (e.target === adminModal) {
+                closeAdminModal();
+            }
+        });
+    }
+    
+    if (passwordModal) {
+        passwordModal.addEventListener('click', (e) => {
+            if (e.target === passwordModal) {
+                closePasswordModal();
+            }
+        });
+    }
+});
+
+// ==================== PAYMENT METHODS MANAGEMENT ====================
+
+// Payment method management state
+let currentPaymentMethodSearch = '';
+let currentPaymentMethodTypeFilter = '';
+let currentPaymentMethodHostFilter = '';
+let paymentMethodSearchTimeout = null;
+
+// Setup payment method search and filters
+function setupPaymentMethodSearch() {
+    const searchInput = document.getElementById('paymentMethodSearch');
+    const typeFilter = document.getElementById('paymentMethodTypeFilter');
+    const hostFilter = document.getElementById('paymentMethodHostFilter');
+    
+    if (searchInput && !searchInput.oninput) {
+        searchInput.oninput = (e) => {
+            clearTimeout(paymentMethodSearchTimeout);
+            paymentMethodSearchTimeout = setTimeout(() => {
+                currentPaymentMethodSearch = e.target.value;
+                loadPaymentMethods();
+            }, 300);
+        };
+    }
+    
+    if (typeFilter && !typeFilter.onchange) {
+        typeFilter.onchange = (e) => {
+            currentPaymentMethodTypeFilter = e.target.value;
+            loadPaymentMethods();
+        };
+    }
+    
+    if (hostFilter && !hostFilter.oninput) {
+        hostFilter.oninput = (e) => {
+            clearTimeout(paymentMethodSearchTimeout);
+            paymentMethodSearchTimeout = setTimeout(() => {
+                currentPaymentMethodHostFilter = e.target.value;
+                loadPaymentMethods();
+            }, 300);
+        };
+    }
+}
+
+// Load payment methods
+async function loadPaymentMethods() {
+    const content = document.getElementById('paymentMethodsContent');
+    
+    setupPaymentMethodSearch();
+    
+    try {
+        const params = { limit: 50 };
+        if (currentPaymentMethodSearch) {
+            params.search = currentPaymentMethodSearch;
+        }
+        if (currentPaymentMethodTypeFilter) {
+            params.method_type = currentPaymentMethodTypeFilter;
+        }
+        if (currentPaymentMethodHostFilter) {
+            params.host_id = parseInt(currentPaymentMethodHostFilter);
+        }
+        
+        const data = await api.getPaymentMethods(params);
+        if (data.payment_methods && data.payment_methods.length > 0) {
+            content.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Name</th>
+                                <th>Type</th>
+                                <th>Host</th>
+                                <th>Details</th>
+                                <th>Default</th>
+                                <th>Created</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.payment_methods.map(pm => `
+                                <tr>
+                                    <td>${pm.name || 'N/A'}</td>
+                                    <td>${pm.method_type || 'N/A'}</td>
+                                    <td>
+                                        <div>${pm.host_name || 'N/A'}</div>
+                                        <div style="font-size: 12px; color: #666;">${pm.host_email || ''}</div>
+                                    </td>
+                                    <td>
+                                        ${pm.method_type === 'mpesa' 
+                                            ? `<div>${pm.mpesa_number || 'N/A'}</div>`
+                                            : pm.method_type === 'visa' || pm.method_type === 'mastercard'
+                                            ? `<div>****${pm.card_last_four || '****'}</div>
+                                               <div style="font-size: 12px; color: #666;">${pm.expiry_date || 'N/A'}</div>`
+                                            : 'N/A'
+                                        }
+                                    </td>
+                                    <td>${pm.is_default ? '<span class="status-badge active">Yes</span>' : '<span class="status-badge inactive">No</span>'}</td>
+                                    <td>${new Date(pm.created_at).toLocaleDateString()}</td>
+                                    <td>
+                                        <button class="btn btn-primary btn-small" onclick="viewPaymentMethodDetails(${pm.id})">View</button>
+                                        <button class="btn btn-danger btn-small" onclick="deletePaymentMethodConfirm(${pm.id}, '${pm.name}')">Delete</button>
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        } else {
+            content.innerHTML = '<div class="empty-state">No payment methods found</div>';
+        }
+    } catch (error) {
+        console.error('Error loading payment methods:', error);
+        content.innerHTML = '<div class="empty-state">Error loading payment methods</div>';
+    }
+}
+
+// Back to payment methods list
+function backToPaymentMethodsList() {
+    loadPage('payment-methods');
+}
+
+// View payment method details
+async function viewPaymentMethodDetails(paymentMethodId) {
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    
+    const paymentMethodDetailPage = document.getElementById('paymentMethodDetailPage');
+    const paymentMethodDetailContent = document.getElementById('paymentMethodDetailContent');
+    const paymentMethodDetailTitle = document.getElementById('paymentMethodDetailTitle');
+    
+    paymentMethodDetailPage.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Payment Method Details';
+    paymentMethodDetailContent.innerHTML = '<div class="loading">Loading payment method details...</div>';
+    
+    try {
+        const pm = await api.getPaymentMethod(paymentMethodId);
+        paymentMethodDetailTitle.textContent = pm.name || 'Payment Method Details';
+        
+        paymentMethodDetailContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="host-detail-section">
+                    <h3>Payment Method Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Name:</div>
+                        <div class="detail-value">${pm.name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Type:</div>
+                        <div class="detail-value">${pm.method_type || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Default:</div>
+                        <div class="detail-value">
+                            <span class="status-badge ${pm.is_default ? 'active' : 'inactive'}">
+                                ${pm.is_default ? 'Yes' : 'No'}
+                            </span>
+                        </div>
+                    </div>
+                    ${pm.method_type === 'mpesa' ? `
+                    <div class="detail-row">
+                        <div class="detail-label">M-Pesa Number:</div>
+                        <div class="detail-value">${pm.mpesa_number || 'N/A'}</div>
+                    </div>
+                    ` : ''}
+                    ${pm.method_type === 'visa' || pm.method_type === 'mastercard' ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Card Number:</div>
+                        <div class="detail-value">****${pm.card_last_four || '****'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Card Type:</div>
+                        <div class="detail-value">${pm.card_type || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Expiry Date:</div>
+                        <div class="detail-value">${pm.expiry_date || 'N/A'}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="host-detail-section">
+                    <h3>Host Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Host Name:</div>
+                        <div class="detail-value">${pm.host_name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Host Email:</div>
+                        <div class="detail-value">${pm.host_email || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Host ID:</div>
+                        <div class="detail-value">${pm.host_id || 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="host-detail-section">
+                <h3>Account Information</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Created:</div>
+                    <div class="detail-value">${new Date(pm.created_at).toLocaleString()}</div>
+                </div>
+                ${pm.updated_at ? `
+                <div class="detail-row">
+                    <div class="detail-label">Last Updated:</div>
+                    <div class="detail-value">${new Date(pm.updated_at).toLocaleString()}</div>
+                </div>
+                ` : ''}
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
+                <button class="btn btn-danger" onclick="deletePaymentMethodConfirm(${pm.id}, '${pm.name}', true)">Delete Payment Method</button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading payment method details:', error);
+        paymentMethodDetailContent.innerHTML = `<div class="empty-state">Error loading payment method details: ${error.message}</div>`;
+    }
+}
+
+// Delete payment method confirmation
+function deletePaymentMethodConfirm(paymentMethodId, paymentMethodName, reloadAfter = false) {
+    if (!confirm(`Are you sure you want to permanently delete payment method "${paymentMethodName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    deletePaymentMethod(paymentMethodId, reloadAfter);
+}
+
+// Delete payment method
+async function deletePaymentMethod(paymentMethodId, reloadAfter = false) {
+    try {
+        await api.deletePaymentMethod(paymentMethodId);
+        alert('Payment method deleted successfully');
+        if (reloadAfter) {
+            backToPaymentMethodsList();
+        } else {
+            loadPaymentMethods();
+        }
+    } catch (error) {
+        alert('Error deleting payment method: ' + error.message);
     }
 }

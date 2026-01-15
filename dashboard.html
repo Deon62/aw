@@ -21,6 +21,8 @@
                 <a href="#" class="nav-item" data-page="cars">Cars</a>
                 <a href="#" class="nav-item" data-page="feedback">Feedback</a>
                 <a href="#" class="nav-item" data-page="notifications">Notifications</a>
+                <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
+                <a href="#" class="nav-item" data-page="admins" id="adminsNavItem" style="display: none;">Admins</a>
             </nav>
         </aside>
 
@@ -38,7 +40,8 @@
                         <div class="profile-avatar" id="profileAvatar">A</div>
                     </button>
                     <div class="profile-menu" id="profileMenu">
-                        <a href="#" class="profile-menu-item" id="profileLink">View Profile</a>
+                        <a href="#" class="profile-menu-item" id="profileLink">My Profile</a>
+                        <a href="#" class="profile-menu-item" id="changePasswordLink">Change Password</a>
                         <a href="#" class="profile-menu-item logout" id="logoutLink">Logout</a>
                     </div>
                 </div>
@@ -172,9 +175,177 @@
                         </div>
                     </div>
                 </div>
+
+                <div id="adminsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Admins</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <button class="btn btn-primary" onclick="showCreateAdminForm()">Create Admin</button>
+                                <select id="adminRoleFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Roles</option>
+                                    <option value="super_admin">Super Admin</option>
+                                    <option value="admin">Admin</option>
+                                    <option value="moderator">Moderator</option>
+                                </select>
+                                <select id="adminStatusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Status</option>
+                                    <option value="true">Active</option>
+                                    <option value="false">Inactive</option>
+                                </select>
+                                <input type="text" id="adminSearch" placeholder="Search by name or email..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 300px;">
+                            </div>
+                        </div>
+                        <div id="adminsContent">
+                            <div class="loading">Loading admins...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="adminDetailPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 24px;">
+                            <button class="btn btn-secondary" onclick="backToAdminsList()" style="padding: 8px 16px;">← Back</button>
+                            <h2 id="adminDetailTitle" style="margin: 0;">Admin Details</h2>
+                        </div>
+                        <div id="adminDetailContent">
+                            <div class="loading">Loading admin details...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="myProfilePage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2>My Profile</h2>
+                        <div id="myProfileContent">
+                            <div class="loading">Loading profile...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="paymentMethodsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Payment Methods</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="paymentMethodTypeFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Types</option>
+                                    <option value="mpesa">M-Pesa</option>
+                                    <option value="visa">Visa</option>
+                                    <option value="mastercard">Mastercard</option>
+                                </select>
+                                <input type="number" id="paymentMethodHostFilter" placeholder="Host ID..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 150px;">
+                                <input type="text" id="paymentMethodSearch" placeholder="Search by name or host..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 300px;">
+                            </div>
+                        </div>
+                        <div id="paymentMethodsContent">
+                            <div class="loading">Loading payment methods...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="paymentMethodDetailPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 24px;">
+                            <button class="btn btn-secondary" onclick="backToPaymentMethodsList()" style="padding: 8px 16px;">← Back</button>
+                            <h2 id="paymentMethodDetailTitle" style="margin: 0;">Payment Method Details</h2>
+                        </div>
+                        <div id="paymentMethodDetailContent">
+                            <div class="loading">Loading payment method details...</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </main>
     </div>
+
+    <!-- Create/Edit Admin Modal -->
+    <div id="adminModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <h2 id="adminModalTitle">Create Admin</h2>
+                <button class="modal-close" onclick="closeAdminModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="adminForm" onsubmit="saveAdmin(event)">
+                    <input type="hidden" id="adminFormId" value="">
+                    <div class="form-group">
+                        <label for="adminFullName">Full Name *</label>
+                        <input type="text" id="adminFullName" required maxlength="255" placeholder="Enter full name">
+                    </div>
+                    <div class="form-group">
+                        <label for="adminEmail">Email *</label>
+                        <input type="email" id="adminEmail" required placeholder="Enter email address">
+                    </div>
+                    <div id="adminPasswordFields">
+                        <div class="form-group">
+                            <label for="adminPassword">Password *</label>
+                            <input type="password" id="adminPassword" minlength="8" placeholder="Enter password (min 8 characters)">
+                        </div>
+                        <div class="form-group">
+                            <label for="adminPasswordConfirm">Confirm Password *</label>
+                            <input type="password" id="adminPasswordConfirm" minlength="8" placeholder="Confirm password">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="adminRole">Role *</label>
+                        <select id="adminRole" required>
+                            <option value="admin">Admin</option>
+                            <option value="moderator">Moderator</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="adminIsActive" checked> Active Account
+                        </label>
+                    </div>
+                    <div id="adminFormError" style="color: #d32f2f; margin-bottom: 15px;"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closeAdminModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="saveAdminBtn">Save</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Change Password Modal -->
+    <div id="passwordModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header">
+                <h2 id="passwordModalTitle">Change Password</h2>
+                <button class="modal-close" onclick="closePasswordModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="passwordForm" onsubmit="savePassword(event)">
+                    <input type="hidden" id="passwordFormType" value="own">
+                    <input type="hidden" id="passwordFormAdminId" value="">
+                    <div id="currentPasswordField" class="form-group">
+                        <label for="currentPassword">Current Password *</label>
+                        <input type="password" id="currentPassword" required placeholder="Enter current password">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPassword">New Password *</label>
+                        <input type="password" id="newPassword" required minlength="8" placeholder="Enter new password (min 8 characters)">
+                    </div>
+                    <div class="form-group">
+                        <label for="newPasswordConfirm">Confirm New Password *</label>
+                        <input type="password" id="newPasswordConfirm" required minlength="8" placeholder="Confirm new password">
+                    </div>
+                    <div id="passwordFormError" style="color: #d32f2f; margin-bottom: 15px;"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" onclick="closePasswordModal()">Cancel</button>
+                        <button type="submit" class="btn btn-primary" id="savePasswordBtn">Change Password</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
 
     <script src="api.js"></script>
     <script src="dashboard.js"></script>
