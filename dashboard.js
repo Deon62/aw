@@ -21,25 +21,54 @@ window.addEventListener('DOMContentLoaded', async () => {
 
 // Load admin info
 async function loadAdminInfo() {
+    const profileName = document.getElementById('profileName');
+    const profileEmail = document.getElementById('profileEmail');
+    const profileAvatar = document.getElementById('profileAvatar');
+    
+    if (!profileName || !profileEmail || !profileAvatar) {
+        console.error('Profile elements not found');
+        return;
+    }
+    
     try {
-        const adminInfo = api.getAdminInfo();
-        if (adminInfo) {
-            document.getElementById('profileName').textContent = adminInfo.full_name || 'Admin';
-            document.getElementById('profileEmail').textContent = adminInfo.email || '';
-            const initials = (adminInfo.full_name || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-            document.getElementById('profileAvatar').textContent = initials;
-        } else {
-            // Fetch from API if not in localStorage
-            const admin = await api.getCurrentAdmin();
+        // Try to fetch from API first (most up-to-date)
+        console.log('Fetching admin info from API...');
+        const admin = await api.getCurrentAdmin();
+        console.log('Admin data received:', admin);
+        
+        if (admin && (admin.full_name || admin.email)) {
             localStorage.setItem('admin_info', JSON.stringify(admin));
-            document.getElementById('profileName').textContent = admin.full_name || 'Admin';
-            document.getElementById('profileEmail').textContent = admin.email || '';
-            const initials = (admin.full_name || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
-            document.getElementById('profileAvatar').textContent = initials;
+            profileName.textContent = admin.full_name || 'Admin';
+            profileEmail.textContent = admin.email || '';
+            const initials = (admin.full_name || admin.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+            profileAvatar.textContent = initials;
+            console.log('Admin profile loaded successfully');
+            return;
         }
     } catch (error) {
-        console.error('Error loading admin info:', error);
+        console.error('Error fetching admin from API:', error);
+        // Fallback to localStorage if API fails
+        try {
+            const adminInfo = api.getAdminInfo();
+            console.log('Admin info from localStorage:', adminInfo);
+            if (adminInfo && (adminInfo.full_name || adminInfo.email)) {
+                profileName.textContent = adminInfo.full_name || 'Admin';
+                profileEmail.textContent = adminInfo.email || '';
+                const initials = (adminInfo.full_name || adminInfo.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
+                profileAvatar.textContent = initials;
+                console.log('Admin profile loaded from localStorage');
+                return;
+            }
+        } catch (localError) {
+            console.error('Error reading from localStorage:', localError);
+        }
     }
+    
+    // If both fail, show error
+    console.error('Failed to load admin profile');
+    profileName.textContent = 'Error';
+    profileEmail.textContent = 'Unable to load profile';
+    profileAvatar.textContent = '?';
 }
 
 // Setup navigation

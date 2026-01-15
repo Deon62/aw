@@ -34,15 +34,15 @@ async function apiRequest(endpoint, options = {}) {
         }
     });
 
+    const data = await response.json();
+    
     if (response.status === 401) {
         // Unauthorized - redirect to login
         localStorage.removeItem('admin_token');
         localStorage.removeItem('admin_info');
         window.location.href = 'index.html';
-        return;
+        throw new Error('Unauthorized');
     }
-
-    const data = await response.json();
     
     if (!response.ok) {
         throw new Error(data.detail || 'Request failed');
