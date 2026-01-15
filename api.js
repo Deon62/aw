@@ -96,10 +96,42 @@ const api = {
         return apiRequest(`/admin/cars${queryString ? '?' + queryString : ''}`);
     },
     getCar: (id) => apiRequest(`/admin/cars/${id}`),
+    approveCar: (id) => apiRequest(`/admin/cars/${id}/approve`, { method: 'PUT' }),
+    rejectCar: (id, rejectionReason) => apiRequest(`/admin/cars/${id}/reject`, { 
+        method: 'PUT', 
+        body: JSON.stringify({ rejection_reason: rejectionReason })
+    }),
+    updateCarStatus: (id, status, rejectionReason = null) => {
+        const body = { verification_status: status };
+        if (rejectionReason) {
+            body.rejection_reason = rejectionReason;
+        }
+        return apiRequest(`/admin/cars/${id}/status`, { 
+            method: 'PUT', 
+            body: JSON.stringify(body)
+        });
+    },
+    hideCar: (id) => apiRequest(`/admin/cars/${id}/hide`, { method: 'PUT' }),
+    showCar: (id) => apiRequest(`/admin/cars/${id}/show`, { method: 'PUT' }),
+    deleteCar: (id) => apiRequest(`/admin/cars/${id}`, { method: 'DELETE' }),
 
     // Feedback
     getFeedback: (params = {}) => {
         const queryString = new URLSearchParams(params).toString();
         return apiRequest(`/admin/feedback${queryString ? '?' + queryString : ''}`);
-    }
+    },
+
+    // Notifications
+    broadcastToHosts: (data) => apiRequest('/admin/notifications/broadcast-hosts', { 
+        method: 'POST', 
+        body: JSON.stringify(data)
+    }),
+    broadcastToClients: (data) => apiRequest('/admin/notifications/broadcast-clients', { 
+        method: 'POST', 
+        body: JSON.stringify(data)
+    }),
+    sendToUser: (data) => apiRequest('/admin/notifications/send', { 
+        method: 'POST', 
+        body: JSON.stringify(data)
+    })
 };

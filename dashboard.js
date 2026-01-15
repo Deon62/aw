@@ -133,7 +133,8 @@ function loadPage(page) {
         hosts: 'Hosts',
         clients: 'Clients',
         cars: 'Cars',
-        feedback: 'Feedback'
+        feedback: 'Feedback',
+        notifications: 'Notifications'
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
 
@@ -156,10 +157,14 @@ function loadPage(page) {
             loadClients();
             break;
         case 'cars':
+            setupCarSearch();
             loadCars();
             break;
         case 'feedback':
             loadFeedback();
+            break;
+        case 'notifications':
+            // Notifications page doesn't need loading
             break;
     }
 }
@@ -518,11 +523,51 @@ async function loadClients() {
     }
 }
 
+// Car management state
+let currentCarSearch = '';
+let currentCarStatusFilter = '';
+let carSearchTimeout = null;
+
+// Setup car search and filter
+function setupCarSearch() {
+    const searchInput = document.getElementById('carSearch');
+    const statusFilter = document.getElementById('carStatusFilter');
+    
+    if (searchInput && !searchInput.oninput) {
+        searchInput.oninput = (e) => {
+            clearTimeout(carSearchTimeout);
+            carSearchTimeout = setTimeout(() => {
+                currentCarSearch = e.target.value;
+                loadCars();
+            }, 300);
+        };
+    }
+    
+    if (statusFilter && !statusFilter.onchange) {
+        statusFilter.onchange = (e) => {
+            currentCarStatusFilter = e.target.value;
+            loadCars();
+        };
+    }
+}
+
 // Load cars
 async function loadCars() {
     const content = document.getElementById('carsContent');
+    
+    // Setup search and filter if not already done
+    setupCarSearch();
+    
     try {
-        const data = await api.getCars({ limit: 50 });
+        const params = { limit: 50 };
+        if (currentCarSearch) {
+            params.search = currentCarSearch;
+        }
+        if (currentCarStatusFilter) {
+            params.status = currentCarStatusFilter;
+        }
+        
+        const data = await api.getCars(params);
         if (data.cars && data.cars.length > 0) {
             content.innerHTML = `
                 <div class="table-container">
@@ -534,6 +579,7 @@ async function loadCars() {
                                 <th>Year</th>
                                 <th>Status</th>
                                 <th>Host</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
@@ -542,8 +588,24 @@ async function loadCars() {
                                     <td>${car.name || 'N/A'}</td>
                                     <td>${car.model || 'N/A'}</td>
                                     <td>${car.year || 'N/A'}</td>
-                                    <td>${car.verification_status || 'N/A'}</td>
+                                    <td>
+                                        <span class="status-badge ${car.verification_status === 'verified' ? 'active' : car.verification_status === 'denied' ? 'inactive' : ''}">
+                                            ${car.verification_status || 'N/A'}
+                                        </span>
+                                    </td>
                                     <td>${car.host_name || 'N/A'}</td>
+                                    <td>
+                                        <button class="btn btn-primary btn-small" onclick="viewCarDetails(${car.id})">View</button>
+                                        ${car.verification_status === 'awaiting' ? `
+                                            <button class="btn btn-primary btn-small" onclick="approveCar(${car.id})">Approve</button>
+                                            <button class="btn btn-secondary btn-small" onclick="rejectCarPrompt(${car.id})">Reject</button>
+                                        ` : ''}
+                                        ${car.is_hidden 
+                                            ? `<button class="btn btn-primary btn-small" onclick="showCar(${car.id})">Show</button>`
+                                            : `<button class="btn btn-secondary btn-small" onclick="hideCar(${car.id})">Hide</button>`
+                                        }
+                                        <button class="btn btn-danger btn-small" onclick="deleteCarConfirm(${car.id}, '${car.name || car.model || 'Car'}')">Delete</button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -556,6 +618,381 @@ async function loadCars() {
     } catch (error) {
         console.error('Error loading cars:', error);
         content.innerHTML = '<div class="empty-state">Error loading cars</div>';
+    }
+}
+
+// Back to cars list
+function backToCarsList() {
+    loadPage('cars');
+}
+
+// View car details
+async function viewCarDetails(carId) {
+    // Hide all pages
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    
+    // Show car detail page
+    const carDetailPage = document.getElementById('carDetailPage');
+    const carDetailContent = document.getElementById('carDetailContent');
+    const carDetailTitle = document.getElementById('carDetailTitle');
+    
+    carDetailPage.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Car Details';
+    carDetailContent.innerHTML = '<div class="loading">Loading car details...</div>';
+    
+    try {
+        const car = await api.getCar(carId);
+        carDetailTitle.textContent = car.name || car.model || 'Car Details';
+        
+        carDetailContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="host-detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Name:</div>
+                        <div class="detail-value">${car.name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Model:</div>
+                        <div class="detail-value">${car.model || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Year:</div>
+                        <div class="detail-value">${car.year || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Body Type:</div>
+                        <div class="detail-value">${car.body_type || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Color:</div>
+                        <div class="detail-value">${car.color || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value">
+                            <span class="status-badge ${car.verification_status === 'verified' ? 'active' : car.verification_status === 'denied' ? 'inactive' : ''}">
+                                ${car.verification_status || 'N/A'}
+                            </span>
+                        </div>
+                    </div>
+                    ${car.rejection_reason ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Rejection Reason:</div>
+                        <div class="detail-value" style="color: #d32f2f;">${car.rejection_reason}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="host-detail-section">
+                    <h3>Host Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Host Name:</div>
+                        <div class="detail-value">${car.host_name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Host Email:</div>
+                        <div class="detail-value">${car.host_email || 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="host-detail-section">
+                    <h3>Specifications</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Seats:</div>
+                        <div class="detail-value">${car.seats || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Fuel Type:</div>
+                        <div class="detail-value">${car.fuel_type || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Transmission:</div>
+                        <div class="detail-value">${car.transmission || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Mileage:</div>
+                        <div class="detail-value">${car.mileage ? car.mileage.toLocaleString() + ' km' : 'N/A'}</div>
+                    </div>
+                    ${car.features && car.features.length > 0 ? `
+                    <div class="detail-row">
+                        <div class="detail-label">Features:</div>
+                        <div class="detail-value">${car.features.join(', ')}</div>
+                    </div>
+                    ` : ''}
+                </div>
+                
+                <div class="host-detail-section">
+                    <h3>Pricing</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Daily Rate:</div>
+                        <div class="detail-value">${car.daily_rate ? 'ksh ' + car.daily_rate.toFixed(2) : 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Weekly Rate:</div>
+                        <div class="detail-value">${car.weekly_rate ? 'ksh ' + car.weekly_rate.toFixed(2) : 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Monthly Rate:</div>
+                        <div class="detail-value">${car.monthly_rate ? 'ksh ' + car.monthly_rate.toFixed(2) : 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Min Rental Days:</div>
+                        <div class="detail-value">${car.min_rental_days || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Max Rental Days:</div>
+                        <div class="detail-value">${car.max_rental_days || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Min Age:</div>
+                        <div class="detail-value">${car.min_age_requirement ? car.min_age_requirement + ' years' : 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="host-detail-section">
+                <h3>Description</h3>
+                <div class="detail-value" style="padding: 12px; background-color: #f9f9f9; border-radius: 4px; min-height: 60px;">
+                    ${car.description || 'No description provided'}
+                </div>
+            </div>
+            
+            ${car.rules ? `
+            <div class="host-detail-section">
+                <h3>Rules</h3>
+                <div class="detail-value" style="padding: 12px; background-color: #f9f9f9; border-radius: 4px; min-height: 60px;">
+                    ${car.rules}
+                </div>
+            </div>
+            ` : ''}
+            
+            ${car.location_name ? `
+            <div class="host-detail-section">
+                <h3>Location</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Location:</div>
+                    <div class="detail-value">${car.location_name}</div>
+                </div>
+                ${car.latitude && car.longitude ? `
+                <div class="detail-row">
+                    <div class="detail-label">Coordinates:</div>
+                    <div class="detail-value">${car.latitude}, ${car.longitude}</div>
+                </div>
+                ` : ''}
+            </div>
+            ` : ''}
+            
+            <div class="host-detail-section">
+                <h3>Account Information</h3>
+                <div class="detail-row">
+                    <div class="detail-label">Listing Created:</div>
+                    <div class="detail-value">${new Date(car.created_at).toLocaleString()}</div>
+                </div>
+                ${car.updated_at ? `
+                <div class="detail-row">
+                    <div class="detail-label">Last Updated:</div>
+                    <div class="detail-value">${new Date(car.updated_at).toLocaleString()}</div>
+                </div>
+                ` : ''}
+                <div class="detail-row">
+                    <div class="detail-label">Complete:</div>
+                    <div class="detail-value">${car.is_complete ? 'Yes' : 'No'}</div>
+                </div>
+                <div class="detail-row">
+                    <div class="detail-label">Hidden:</div>
+                    <div class="detail-value">${car.is_hidden ? 'Yes' : 'No'}</div>
+                </div>
+            </div>
+            
+            <div class="action-buttons" style="margin-top: 32px; padding-top: 24px; border-top: 1px solid #eee;">
+                ${car.verification_status === 'awaiting' ? `
+                    <button class="btn btn-primary" onclick="approveCar(${car.id}, true)">Approve</button>
+                    <button class="btn btn-secondary" onclick="rejectCarPrompt(${car.id}, true)">Reject</button>
+                ` : car.verification_status === 'denied' ? `
+                    <button class="btn btn-primary" onclick="approveCar(${car.id}, true)">Approve</button>
+                ` : ''}
+                ${car.is_hidden 
+                    ? `<button class="btn btn-primary" onclick="showCar(${car.id}, true)">Show Car</button>`
+                    : `<button class="btn btn-secondary" onclick="hideCar(${car.id}, true)">Hide Car</button>`
+                }
+                <button class="btn btn-danger" onclick="deleteCarConfirm(${car.id}, '${car.name || car.model || 'Car'}', true)">Delete Car</button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading car details:', error);
+        carDetailContent.innerHTML = `<div class="empty-state">Error loading car details: ${error.message}</div>`;
+    }
+}
+
+// Approve car
+async function approveCar(carId, reloadAfter = false) {
+    if (!confirm('Are you sure you want to approve this car listing?')) {
+        return;
+    }
+    
+    try {
+        await api.approveCar(carId);
+        alert('Car approved successfully');
+        if (reloadAfter) {
+            viewCarDetails(carId);
+        } else {
+            loadCars();
+        }
+    } catch (error) {
+        alert('Error approving car: ' + error.message);
+    }
+}
+
+// Reject car prompt
+function rejectCarPrompt(carId, reloadAfter = false) {
+    const reason = prompt('Please provide a reason for rejection:');
+    if (reason && reason.trim()) {
+        rejectCar(carId, reason.trim(), reloadAfter);
+    } else if (reason !== null) {
+        alert('Rejection reason is required');
+    }
+}
+
+// Reject car
+async function rejectCar(carId, rejectionReason, reloadAfter = false) {
+    try {
+        await api.rejectCar(carId, rejectionReason);
+        alert('Car rejected successfully');
+        if (reloadAfter) {
+            viewCarDetails(carId);
+        } else {
+            loadCars();
+        }
+    } catch (error) {
+        alert('Error rejecting car: ' + error.message);
+    }
+}
+
+// Hide car
+async function hideCar(carId, reloadAfter = false) {
+    if (!confirm('Are you sure you want to hide this car from public listing?')) {
+        return;
+    }
+    
+    try {
+        await api.hideCar(carId);
+        alert('Car hidden successfully');
+        if (reloadAfter) {
+            viewCarDetails(carId);
+        } else {
+            loadCars();
+        }
+    } catch (error) {
+        alert('Error hiding car: ' + error.message);
+    }
+}
+
+// Show car
+async function showCar(carId, reloadAfter = false) {
+    try {
+        await api.showCar(carId);
+        alert('Car shown successfully');
+        if (reloadAfter) {
+            viewCarDetails(carId);
+        } else {
+            loadCars();
+        }
+    } catch (error) {
+        alert('Error showing car: ' + error.message);
+    }
+}
+
+// Delete car confirmation
+function deleteCarConfirm(carId, carName, reloadAfter = false) {
+    if (!confirm(`Are you sure you want to permanently delete car "${carName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    deleteCar(carId, reloadAfter);
+}
+
+// Delete car
+async function deleteCar(carId, reloadAfter = false) {
+    try {
+        await api.deleteCar(carId);
+        alert('Car deleted successfully');
+        if (reloadAfter) {
+            backToCarsList();
+        } else {
+            loadCars();
+        }
+    } catch (error) {
+        alert('Error deleting car: ' + error.message);
+    }
+}
+
+// Send notification
+async function sendNotification(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('notificationForm');
+    const resultDiv = document.getElementById('notificationResult');
+    const sendBtn = document.getElementById('sendNotificationBtn');
+    
+    const title = document.getElementById('notificationTitle').value.trim();
+    const message = document.getElementById('notificationMessage').value.trim();
+    const type = document.getElementById('notificationType').value;
+    const recipientType = document.querySelector('input[name="recipientType"]:checked').value;
+    
+    if (!title || !message) {
+        resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Please fill in all required fields.</div>';
+        return;
+    }
+    
+    // Disable button
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    resultDiv.innerHTML = '';
+    
+    try {
+        const notificationData = {
+            title: title,
+            message: message,
+            type: type
+        };
+        
+        let response;
+        if (recipientType === 'all') {
+            response = await api.broadcastToHosts(notificationData);
+        } else {
+            // For future: individual host selection
+            resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Individual host selection not yet implemented.</div>';
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send Notification';
+            return;
+        }
+        
+        // Show success message
+        resultDiv.innerHTML = `
+            <div style="color: #2e7d32; padding: 12px; background-color: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
+                <strong>Success!</strong> ${response.message}
+            </div>
+        `;
+        
+        // Reset form
+        form.reset();
+        document.getElementById('notificationType').value = 'info';
+        document.querySelector('input[name="recipientType"][value="all"]').checked = true;
+        
+    } catch (error) {
+        resultDiv.innerHTML = `
+            <div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">
+                <strong>Error:</strong> ${error.message}
+            </div>
+        `;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Notification';
     }
 }
 

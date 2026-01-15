@@ -472,3 +472,60 @@ table tr:hover {
     padding: 6px 12px;
     font-size: 13px;
 }
+
+/* Notification Form */
+.notification-form-section {
+    max-width: 600px;
+}
+
+.notification-form-section h3 {
+    font-size: 18px;
+    font-weight: 500;
+    margin-bottom: 24px;
+    color: #1a1a1a;
+}
+
+.notification-form-section .form-group {
+    margin-bottom: 20px;
+}
+
+.notification-form-section label {
+    display: block;
+    margin-bottom: 8px;
+    font-size: 14px;
+    font-weight: 500;
+    color: #555;
+}
+
+.notification-form-section input[type="text"],
+.notification-form-section textarea,
+.notification-form-section select {
+    width: 100%;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
+
+.notification-form-section textarea {
+    resize: vertical;
+    min-height: 120px;
+}
+
+.notification-form-section input[type="text"]:focus,
+.notification-form-section textarea:focus,
+.notification-form-section select:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+
+.notification-form-section input[type="radio"] {
+    margin-right: 8px;
+}
+
+.notification-form-section input[type="radio"] + label {
+    display: inline;
+    font-weight: normal;
+    margin-left: 4px;
+}
