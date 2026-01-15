@@ -1005,9 +1005,13 @@ async function sendNotification(event) {
             type: type
         };
         
+        console.log('Sending notification:', notificationData);
+        console.log('Recipient type:', recipientType);
+        
         let response;
         if (recipientType === 'all') {
             response = await api.broadcastToHosts(notificationData);
+            console.log('Notification response:', response);
         } else {
             // For future: individual host selection
             resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Individual host selection not yet implemented.</div>';
@@ -1016,12 +1020,21 @@ async function sendNotification(event) {
             return;
         }
         
-        // Show success message
-        resultDiv.innerHTML = `
-            <div style="color: #2e7d32; padding: 12px; background-color: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
-                <strong>Success!</strong> ${response.message}
-            </div>
-        `;
+        // Show success message with details
+        if (response.sent_count && response.sent_count > 0) {
+            resultDiv.innerHTML = `
+                <div style="color: #2e7d32; padding: 12px; background-color: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
+                    <strong>Success!</strong> ${response.message}<br>
+                    <small>Sent to ${response.sent_count} recipient(s)</small>
+                </div>
+            `;
+        } else {
+            resultDiv.innerHTML = `
+                <div style="color: #f57c00; padding: 12px; background-color: #fff3e0; border-radius: 4px; margin-bottom: 12px;">
+                    <strong>Warning:</strong> ${response.message || 'No active recipients found. Notification not sent.'}
+                </div>
+            `;
+        }
         
         // Reset form
         form.reset();
