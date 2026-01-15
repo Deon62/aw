@@ -59,9 +59,26 @@
 
                 <div id="hostsPage" class="page-content" style="display: none;">
                     <div class="content-section">
-                        <h2>Hosts</h2>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Hosts</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <input type="text" id="hostSearch" placeholder="Search by name or email..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 300px;">
+                            </div>
+                        </div>
                         <div id="hostsContent">
                             <div class="loading">Loading hosts...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="hostDetailPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 24px;">
+                            <button class="btn btn-secondary" onclick="backToHostsList()" style="padding: 8px 16px;">← Back</button>
+                            <h2 id="hostDetailTitle" style="margin: 0;">Host Details</h2>
+                        </div>
+                        <div id="hostDetailContent">
+                            <div class="loading">Loading host details...</div>
                         </div>
                     </div>
                 </div>

@@ -34,7 +34,14 @@ async function apiRequest(endpoint, options = {}) {
         }
     });
 
-    const data = await response.json();
+    // Handle empty responses (like DELETE)
+    let data;
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+        data = await response.json();
+    } else {
+        data = {};
+    }
     
     if (response.status === 401) {
         // Unauthorized - redirect to login
@@ -68,6 +75,13 @@ const api = {
         return apiRequest(`/admin/hosts${queryString ? '?' + queryString : ''}`);
     },
     getHost: (id) => apiRequest(`/admin/hosts/${id}`),
+    updateHost: (id, data) => apiRequest(`/admin/hosts/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deactivateHost: (id) => apiRequest(`/admin/hosts/${id}/deactivate`, { method: 'PUT' }),
+    activateHost: (id) => apiRequest(`/admin/hosts/${id}/activate`, { method: 'PUT' }),
+    deleteHost: (id) => apiRequest(`/admin/hosts/${id}`, { method: 'DELETE' }),
+    getHostCars: (id) => apiRequest(`/admin/hosts/${id}/cars`),
+    getHostPaymentMethods: (id) => apiRequest(`/admin/hosts/${id}/payment-methods`),
+    getHostFeedback: (id) => apiRequest(`/admin/hosts/${id}/feedback`),
 
     // Clients
     getClients: (params = {}) => {
