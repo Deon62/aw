@@ -173,5 +173,18 @@ const api = {
         return apiRequest(`/admin/payment-methods${queryString ? '?' + queryString : ''}`);
     },
     getPaymentMethod: (id) => apiRequest(`/admin/payment-methods/${id}`),
-    deletePaymentMethod: (id) => apiRequest(`/admin/payment-methods/${id}`, { method: 'DELETE' })
+    deletePaymentMethod: (id) => apiRequest(`/admin/payment-methods/${id}`, { method: 'DELETE' }),
+
+    // Support Conversations
+    getSupportConversations: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/support/conversations${queryString ? '?' + queryString : ''}`);
+    },
+    getSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}`),
+    respondToSupportConversation: (id, message) => apiRequest(`/admin/support/conversations/${id}/respond`, {
+        method: 'POST',
+        body: JSON.stringify({ message })
+    }),
+    closeSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}/close`, { method: 'PUT' }),
+    reopenSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}/reopen`, { method: 'PUT' })
 };

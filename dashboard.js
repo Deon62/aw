@@ -168,6 +168,7 @@ function loadPage(page) {
         feedback: 'Feedback',
         notifications: 'Notifications',
         'payment-methods': 'Payment Methods',
+        support: 'Support',
         admins: 'Admins'
     };
     document.getElementById('pageTitle').textContent = titles[page] || 'Dashboard';
@@ -200,7 +201,7 @@ function loadPage(page) {
             loadFeedback();
             break;
         case 'notifications':
-            // Notifications page doesn't need loading
+            loadHostsForNotifications();
             break;
         case 'admins':
             setupAdminSearch();
@@ -209,6 +210,10 @@ function loadPage(page) {
         case 'payment-methods':
             setupPaymentMethodSearch();
             loadPaymentMethods();
+            break;
+        case 'support':
+            setupSupportSearch();
+            loadSupportConversations();
             break;
     }
 }
@@ -975,6 +980,56 @@ async function deleteCar(carId, reloadAfter = false) {
     }
 }
 
+// Toggle host selection dropdown visibility
+function toggleHostSelection() {
+    const recipientType = document.querySelector('input[name="recipientType"]:checked')?.value;
+    const hostSelectionGroup = document.getElementById('hostSelectionGroup');
+    const hostSelect = document.getElementById('notificationHostSelect');
+    
+    if (recipientType === 'specific') {
+        hostSelectionGroup.style.display = 'block';
+        if (hostSelect.options.length <= 1) {
+            loadHostsForNotifications();
+        }
+    } else {
+        hostSelectionGroup.style.display = 'none';
+        hostSelect.value = '';
+    }
+}
+
+// Load hosts for notification dropdown
+async function loadHostsForNotifications() {
+    const hostSelect = document.getElementById('notificationHostSelect');
+    if (!hostSelect) return;
+    
+    try {
+        hostSelect.innerHTML = '<option value="">Loading hosts...</option>';
+        const data = await api.getHosts({ limit: 100 });
+        
+        if (data.hosts && data.hosts.length > 0) {
+            // Filter to only active hosts
+            const activeHosts = data.hosts.filter(host => host.is_active === true);
+            
+            if (activeHosts.length > 0) {
+                hostSelect.innerHTML = '<option value="">Select a host...</option>';
+                activeHosts.forEach(host => {
+                    const option = document.createElement('option');
+                    option.value = host.id;
+                    option.textContent = `${host.full_name} (${host.email})`;
+                    hostSelect.appendChild(option);
+                });
+            } else {
+                hostSelect.innerHTML = '<option value="">No active hosts found</option>';
+            }
+        } else {
+            hostSelect.innerHTML = '<option value="">No hosts found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading hosts:', error);
+        hostSelect.innerHTML = '<option value="">Error loading hosts</option>';
+    }
+}
+
 // Send notification
 async function sendNotification(event) {
     event.preventDefault();
@@ -1012,9 +1067,27 @@ async function sendNotification(event) {
         if (recipientType === 'all') {
             response = await api.broadcastToHosts(notificationData);
             console.log('Notification response:', response);
+        } else if (recipientType === 'specific') {
+            const hostId = document.getElementById('notificationHostSelect').value;
+            if (!hostId) {
+                resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Please select a host.</div>';
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Notification';
+                return;
+            }
+            
+            const specificNotificationData = {
+                user_type: 'host',
+                user_id: parseInt(hostId),
+                title: title,
+                message: message,
+                type: type
+            };
+            
+            response = await api.sendToUser(specificNotificationData);
+            console.log('Notification response:', response);
         } else {
-            // For future: individual host selection
-            resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Individual host selection not yet implemented.</div>';
+            resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Invalid recipient type selected.</div>';
             sendBtn.disabled = false;
             sendBtn.textContent = 'Send Notification';
             return;
@@ -1022,10 +1095,12 @@ async function sendNotification(event) {
         
         // Show success message with details
         if (response.sent_count && response.sent_count > 0) {
+            const recipientInfo = recipientType === 'specific' && response.user_id 
+                ? ` (Host ID: ${response.user_id})`
+                : ` (${response.sent_count} recipient(s))`;
             resultDiv.innerHTML = `
                 <div style="color: #2e7d32; padding: 12px; background-color: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
-                    <strong>Success!</strong> ${response.message}<br>
-                    <small>Sent to ${response.sent_count} recipient(s)</small>
+                    <strong>Success!</strong> ${response.message}${recipientInfo}
                 </div>
             `;
         } else {
@@ -1040,8 +1115,11 @@ async function sendNotification(event) {
         form.reset();
         document.getElementById('notificationType').value = 'info';
         document.querySelector('input[name="recipientType"][value="all"]').checked = true;
+        document.getElementById('notificationHostSelect').value = '';
+        toggleHostSelection();
         
     } catch (error) {
+        console.error('Error sending notification:', error);
         resultDiv.innerHTML = `
             <div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">
                 <strong>Error:</strong> ${error.message}
@@ -1898,5 +1976,373 @@ async function deletePaymentMethod(paymentMethodId, reloadAfter = false) {
         }
     } catch (error) {
         alert('Error deleting payment method: ' + error.message);
+    }
+}
+
+// ==================== Support Conversations ====================
+
+// Helper functions
+function formatDateTime(dateString) {
+    if (!dateString) return 'N/A';
+    try {
+        return new Date(dateString).toLocaleString();
+    } catch (e) {
+        return dateString;
+    }
+}
+
+function escapeHtml(text) {
+    if (!text) return '';
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+let currentSupportPage = 1;
+let currentSupportConversationId = null;
+
+// Setup support search and filters
+function setupSupportSearch() {
+    const searchInput = document.getElementById('supportSearch');
+    const statusFilter = document.getElementById('supportStatusFilter');
+    const hostIdFilter = document.getElementById('supportHostIdFilter');
+    
+    let searchTimeout;
+    
+    const performSearch = () => {
+        currentSupportPage = 1;
+        loadSupportConversations();
+    };
+    
+    if (searchInput) {
+        searchInput.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 500);
+        });
+    }
+    
+    if (statusFilter) {
+        statusFilter.addEventListener('change', performSearch);
+    }
+    
+    if (hostIdFilter) {
+        hostIdFilter.addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(performSearch, 500);
+        });
+    }
+}
+
+// Load support conversations
+async function loadSupportConversations() {
+    const content = document.getElementById('supportContent');
+    const unreadCountEl = document.getElementById('unreadCount');
+    
+    if (!content) return;
+    
+    content.innerHTML = '<div class="loading">Loading conversations...</div>';
+    
+    try {
+        const statusFilter = document.getElementById('supportStatusFilter')?.value || '';
+        const hostIdFilter = document.getElementById('supportHostIdFilter')?.value || '';
+        const search = document.getElementById('supportSearch')?.value || '';
+        
+        const params = {
+            page: currentSupportPage,
+            limit: 20
+        };
+        
+        if (statusFilter) params.status_filter = statusFilter;
+        if (hostIdFilter) params.host_id = parseInt(hostIdFilter);
+        if (search) params.search = search;
+        
+        const response = await api.getSupportConversations(params);
+        
+        // Update unread count
+        if (unreadCountEl) {
+            if (response.unread_count > 0) {
+                unreadCountEl.textContent = `${response.unread_count} unread`;
+                unreadCountEl.style.display = 'inline';
+            } else {
+                unreadCountEl.textContent = '';
+                unreadCountEl.style.display = 'none';
+            }
+        }
+        
+        if (!response.conversations || response.conversations.length === 0) {
+            content.innerHTML = '<div class="empty-state">No conversations found</div>';
+            document.getElementById('supportPagination').innerHTML = '';
+            return;
+        }
+        
+        let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
+        
+        response.conversations.forEach(conv => {
+            const lastMessage = conv.messages && conv.messages.length > 0 
+                ? conv.messages[conv.messages.length - 1] 
+                : null;
+            const unreadBadge = !conv.is_read_by_admin ? '<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Unread</span>' : '';
+            const statusBadge = conv.status === 'closed' 
+                ? '<span style="background: #95a5a6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Closed</span>'
+                : '<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Open</span>';
+            
+            html += `
+                <div onclick="viewSupportConversation(${conv.id})" style="padding: 16px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; background: ${!conv.is_read_by_admin ? '#fff5f5' : '#fff'}; transition: all 0.2s;" 
+                     onmouseover="this.style.borderColor='#3498db'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'" 
+                     onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
+                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
+                        <div>
+                            <strong style="font-size: 16px;">${escapeHtml(conv.host_name || 'Unknown Host')}</strong>
+                            ${unreadBadge}
+                            ${statusBadge}
+                        </div>
+                        <div style="font-size: 12px; color: #666;">
+                            ${lastMessage ? formatDateTime(lastMessage.created_at) : formatDateTime(conv.created_at)}
+                        </div>
+                    </div>
+                    <div style="font-size: 14px; color: #555; margin-bottom: 4px;">
+                        ${escapeHtml(conv.host_email || '')}
+                    </div>
+                    ${lastMessage ? `
+                        <div style="font-size: 13px; color: #777; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
+                            <strong>${lastMessage.sender_type === 'host' ? 'Host' : 'Admin'}:</strong> 
+                            ${escapeHtml(lastMessage.message.substring(0, 100))}${lastMessage.message.length > 100 ? '...' : ''}
+                        </div>
+                    ` : '<div style="font-size: 13px; color: #999; font-style: italic;">No messages yet</div>'}
+                </div>
+            `;
+        });
+        
+        html += '</div>';
+        content.innerHTML = html;
+        
+        // Pagination
+        renderSupportPagination(response);
+        
+    } catch (error) {
+        console.error('Error loading conversations:', error);
+        content.innerHTML = `<div class="error">Error loading conversations: ${error.message}</div>`;
+    }
+}
+
+// Render pagination for support conversations
+function renderSupportPagination(response) {
+    const paginationEl = document.getElementById('supportPagination');
+    if (!paginationEl || response.total_pages <= 1) {
+        if (paginationEl) paginationEl.innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    
+    // Previous button
+    html += `<button class="btn btn-secondary" ${currentSupportPage === 1 ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage - 1})" style="padding: 8px 16px;">Previous</button>`;
+    
+    // Page info
+    html += `<span style="padding: 0 16px;">Page ${currentSupportPage} of ${response.total_pages} (${response.total} total)</span>`;
+    
+    // Next button
+    html += `<button class="btn btn-secondary" ${currentSupportPage >= response.total_pages ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage + 1})" style="padding: 8px 16px;">Next</button>`;
+    
+    paginationEl.innerHTML = html;
+}
+
+// Change support page
+function changeSupportPage(page) {
+    currentSupportPage = page;
+    loadSupportConversations();
+}
+
+// View support conversation details
+async function viewSupportConversation(conversationId) {
+    currentSupportConversationId = conversationId;
+    
+    // Hide list page, show detail page
+    document.getElementById('supportPage').style.display = 'none';
+    document.getElementById('supportDetailPage').style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Support Conversation';
+    
+    const infoEl = document.getElementById('supportConversationInfo');
+    const messagesEl = document.getElementById('supportMessages');
+    const replyForm = document.getElementById('supportReplyForm');
+    
+    infoEl.innerHTML = '<div class="loading">Loading conversation...</div>';
+    messagesEl.innerHTML = '<div class="loading">Loading messages...</div>';
+    
+    try {
+        const conversation = await api.getSupportConversation(conversationId);
+        
+        // Render conversation info
+        const statusBadge = conversation.status === 'closed' 
+            ? '<span style="background: #95a5a6; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px;">Closed</span>'
+            : '<span style="background: #27ae60; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px;">Open</span>';
+        
+        infoEl.innerHTML = `
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h3 style="margin: 0 0 8px 0;">${escapeHtml(conversation.host_name || 'Unknown Host')}</h3>
+                    <div style="color: #666; font-size: 14px;">${escapeHtml(conversation.host_email || '')}</div>
+                    <div style="color: #999; font-size: 12px; margin-top: 4px;">Host ID: ${conversation.host_id}</div>
+                </div>
+                <div>
+                    ${statusBadge}
+                </div>
+            </div>
+        `;
+        
+        // Show/hide close/reopen buttons
+        const closeBtn = document.getElementById('closeConversationBtn');
+        const reopenBtn = document.getElementById('reopenConversationBtn');
+        if (conversation.status === 'open') {
+            closeBtn.style.display = 'block';
+            reopenBtn.style.display = 'none';
+            replyForm.style.display = 'block';
+        } else {
+            closeBtn.style.display = 'none';
+            reopenBtn.style.display = 'block';
+            replyForm.style.display = 'none';
+        }
+        
+        // Render messages
+        if (!conversation.messages || conversation.messages.length === 0) {
+            messagesEl.innerHTML = '<div class="empty-state">No messages yet</div>';
+        } else {
+            let messagesHtml = '<div style="display: flex; flex-direction: column; gap: 16px;">';
+            
+            conversation.messages.forEach(msg => {
+                const isHost = msg.sender_type === 'host';
+                const senderName = msg.sender_name || (isHost ? 'Host' : 'Admin');
+                
+                messagesHtml += `
+                    <div style="display: flex; ${isHost ? 'justify-content: flex-start' : 'justify-content: flex-end'};">
+                        <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: ${isHost ? '#e8f4f8' : '#3498db'}; color: ${isHost ? '#333' : '#fff'};">
+                            <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px; opacity: 0.9;">
+                                ${escapeHtml(senderName)}
+                            </div>
+                            <div style="font-size: 14px; line-height: 1.5;">
+                                ${escapeHtml(msg.message)}
+                            </div>
+                            <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">
+                                ${formatDateTime(msg.created_at)}
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            messagesHtml += '</div>';
+            messagesEl.innerHTML = messagesHtml;
+            
+            // Scroll to bottom
+            messagesEl.scrollTop = messagesEl.scrollHeight;
+        }
+        
+        // Reload conversations list to update unread count
+        loadSupportConversations();
+        
+    } catch (error) {
+        console.error('Error loading conversation:', error);
+        infoEl.innerHTML = `<div class="error">Error loading conversation: ${error.message}</div>`;
+        messagesEl.innerHTML = '';
+    }
+}
+
+// Back to support list
+function backToSupportList() {
+    document.getElementById('supportDetailPage').style.display = 'none';
+    document.getElementById('supportPage').style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Support';
+    currentSupportConversationId = null;
+    loadSupportConversations();
+}
+
+// Auto-resize textarea
+document.addEventListener('DOMContentLoaded', () => {
+    const replyTextarea = document.getElementById('supportReplyMessage');
+    if (replyTextarea) {
+        replyTextarea.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+    }
+});
+
+// Send support reply
+async function sendSupportReply(event) {
+    event.preventDefault();
+    
+    if (!currentSupportConversationId) {
+        alert('No conversation selected');
+        return;
+    }
+    
+    const messageInput = document.getElementById('supportReplyMessage');
+    const message = messageInput.value.trim();
+    
+    if (!message) {
+        return;
+    }
+    
+    if (message.length > 2000) {
+        alert('Message must be 2000 characters or less');
+        return;
+    }
+    
+    // Disable form while sending
+    const form = event.target;
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const originalBtnText = submitBtn.textContent;
+    submitBtn.disabled = true;
+    submitBtn.textContent = 'Sending...';
+    
+    try {
+        await api.respondToSupportConversation(currentSupportConversationId, message);
+        messageInput.value = '';
+        messageInput.style.height = 'auto';
+        
+        // Reload conversation to show new message
+        await viewSupportConversation(currentSupportConversationId);
+        
+    } catch (error) {
+        alert('Error sending reply: ' + error.message);
+    } finally {
+        submitBtn.disabled = false;
+        submitBtn.textContent = originalBtnText;
+    }
+}
+
+// Close support conversation
+async function closeSupportConversation() {
+    if (!currentSupportConversationId) {
+        alert('No conversation selected');
+        return;
+    }
+    
+    if (!confirm('Are you sure you want to close this conversation? The host will not be able to send new messages until it is reopened.')) {
+        return;
+    }
+    
+    try {
+        await api.closeSupportConversation(currentSupportConversationId);
+        await viewSupportConversation(currentSupportConversationId);
+        alert('Conversation closed successfully');
+    } catch (error) {
+        alert('Error closing conversation: ' + error.message);
+    }
+}
+
+// Reopen support conversation
+async function reopenSupportConversation() {
+    if (!currentSupportConversationId) {
+        alert('No conversation selected');
+        return;
+    }
+    
+    try {
+        await api.reopenSupportConversation(currentSupportConversationId);
+        await viewSupportConversation(currentSupportConversationId);
+        alert('Conversation reopened successfully');
+    } catch (error) {
+        alert('Error reopening conversation: ' + error.message);
     }
 }
