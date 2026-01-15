@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Dashboard - Car Rental</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+    <div class="dashboard-layout">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Admin Panel</h2>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-page="dashboard">Dashboard</a>
+                <a href="#" class="nav-item" data-page="hosts">Hosts</a>
+                <a href="#" class="nav-item" data-page="clients">Clients</a>
+                <a href="#" class="nav-item" data-page="cars">Cars</a>
+                <a href="#" class="nav-item" data-page="feedback">Feedback</a>
+            </nav>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="main-content">
+            <!-- Header -->
+            <header class="header">
+                <h1 id="pageTitle">Dashboard</h1>
+                <div class="profile-dropdown">
+                    <button class="profile-button" id="profileButton">
+                        <div class="profile-info">
+                            <div class="profile-name" id="profileName">Loading...</div>
+                            <div class="profile-email" id="profileEmail">Loading...</div>
+                        </div>
+                        <div class="profile-avatar" id="profileAvatar">A</div>
+                    </button>
+                    <div class="profile-menu" id="profileMenu">
+                        <a href="#" class="profile-menu-item" id="profileLink">View Profile</a>
+                        <a href="#" class="profile-menu-item logout" id="logoutLink">Logout</a>
+                    </div>
+                </div>
+            </header>
+
+            <!-- Content -->
+            <div class="content" id="contentArea">
+                <div id="dashboardPage" class="page-content">
+                    <div class="stats-grid" id="statsGrid">
+                        <div class="loading">Loading statistics...</div>
+                    </div>
+                    <div class="content-section">
+                        <h2>Recent Activity</h2>
+                        <div id="recentActivity">
+                            <div class="loading">Loading activity...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="hostsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2>Hosts</h2>
+                        <div id="hostsContent">
+                            <div class="loading">Loading hosts...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="clientsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2>Clients</h2>
+                        <div id="clientsContent">
+                            <div class="loading">Loading clients...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="carsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2>Cars</h2>
+                        <div id="carsContent">
+                            <div class="loading">Loading cars...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="feedbackPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2>Feedback</h2>
+                        <div id="feedbackContent">
+                            <div class="loading">Loading feedback...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="api.js"></script>
+    <script src="dashboard.js"></script>
+</body>
+</html>
