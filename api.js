@@ -25,6 +25,14 @@ async function apiRequest(endpoint, options = {}) {
         }
     };
 
+    console.log(`Making API request to: ${API_BASE_URL}${endpoint}`, {
+        method: options.method || 'GET',
+        headers: {
+            ...defaultOptions.headers,
+            ...options.headers
+        }
+    });
+    
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
         ...defaultOptions,
         ...options,
@@ -33,6 +41,8 @@ async function apiRequest(endpoint, options = {}) {
             ...options.headers
         }
     });
+    
+    console.log(`API response status: ${response.status}`, response.statusText);
 
     // Handle empty responses (like DELETE)
     let data;
@@ -89,6 +99,10 @@ const api = {
         return apiRequest(`/admin/clients${queryString ? '?' + queryString : ''}`);
     },
     getClient: (id) => apiRequest(`/admin/clients/${id}`),
+    updateClient: (id, data) => apiRequest(`/admin/clients/${id}`, { method: 'PUT', body: JSON.stringify(data) }),
+    deactivateClient: (id) => apiRequest(`/admin/clients/${id}/deactivate`, { method: 'PUT' }),
+    activateClient: (id) => apiRequest(`/admin/clients/${id}/activate`, { method: 'PUT' }),
+    deleteClient: (id) => apiRequest(`/admin/clients/${id}`, { method: 'DELETE' }),
 
     // Cars
     getCars: (params = {}) => {
@@ -134,6 +148,12 @@ const api = {
         method: 'POST', 
         body: JSON.stringify(data)
     }),
+    
+    // Clients
+    getClients: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/clients${queryString ? '?' + queryString : ''}`);
+    },
 
     // Admin Management
     getAdmins: (params = {}) => {

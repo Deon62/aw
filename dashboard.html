@@ -142,7 +142,14 @@
                     <div class="content-section">
                         <h2>Notifications Center</h2>
                         <div id="notificationsContent">
-                            <div class="notification-form-section">
+                            <!-- Tabs -->
+                            <div style="display: flex; gap: 10px; margin-bottom: 24px; border-bottom: 2px solid #e4e6eb;">
+                                <button id="hostNotificationTab" onclick="switchNotificationTab('host')" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid #3498db; cursor: pointer; font-weight: 600; color: #3498db; font-size: 15px;">Hosts</button>
+                                <button id="clientNotificationTab" onclick="switchNotificationTab('client')" style="padding: 12px 24px; background: none; border: none; border-bottom: 3px solid transparent; cursor: pointer; font-weight: 500; color: #65676b; font-size: 15px;">Clients</button>
+                            </div>
+                            
+                            <!-- Host Notifications Form -->
+                            <div id="hostNotificationForm" class="notification-form-section">
                                 <h3>Send Notification to Hosts</h3>
                                 <form id="notificationForm" onsubmit="sendNotification(event)">
                                     <div class="form-group">
@@ -183,6 +190,50 @@
                                     </div>
                                 </form>
                                 <div id="notificationResult" style="margin-top: 20px;"></div>
+                            </div>
+                            
+                            <!-- Client Notifications Form -->
+                            <div id="clientNotificationForm" class="notification-form-section" style="display: none;">
+                                <h3>Send Notification to Clients</h3>
+                                <form id="clientNotificationForm" onsubmit="sendClientNotification(event)">
+                                    <div class="form-group">
+                                        <label for="clientNotificationTitle">Title</label>
+                                        <input type="text" id="clientNotificationTitle" name="title" required maxlength="255" placeholder="Enter notification title">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="clientNotificationMessage">Message</label>
+                                        <textarea id="clientNotificationMessage" name="message" required maxlength="1000" rows="5" placeholder="Enter notification message"></textarea>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="clientNotificationType">Type</label>
+                                        <select id="clientNotificationType" name="type">
+                                            <option value="info">Info</option>
+                                            <option value="success">Success</option>
+                                            <option value="warning">Warning</option>
+                                            <option value="error">Error</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="radio" name="clientRecipientType" value="all" checked onchange="toggleClientSelection()"> Send to All Active Clients
+                                        </label>
+                                    </div>
+                                    <div class="form-group">
+                                        <label>
+                                            <input type="radio" name="clientRecipientType" value="specific" onchange="toggleClientSelection()"> Send to Specific Client
+                                        </label>
+                                    </div>
+                                    <div class="form-group" id="clientSelectionGroup" style="display: none;">
+                                        <label for="notificationClientSelect">Select Client</label>
+                                        <select id="notificationClientSelect" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 100%;">
+                                            <option value="">Loading clients...</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <button type="submit" class="btn btn-primary" id="sendClientNotificationBtn">Send Notification</button>
+                                    </div>
+                                </form>
+                                <div id="clientNotificationResult" style="margin-top: 20px;"></div>
                             </div>
                         </div>
                     </div>
@@ -404,11 +455,6 @@
             </div>
         </div>
     </div>
-
-    <script src="api.js"></script>
-    <script src="dashboard.js"></script>
-</body>
-</html>
 
     <script src="api.js"></script>
     <script src="dashboard.js"></script>

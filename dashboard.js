@@ -201,6 +201,7 @@ function loadPage(page) {
             loadFeedback();
             break;
         case 'notifications':
+            switchNotificationTab('host');
             loadHostsForNotifications();
             break;
         case 'admins':
@@ -256,7 +257,9 @@ async function loadDashboard() {
         `;
 
         // Load recent activity
+        console.log('Loading recent activity...');
         const activity = await api.getRecentActivity();
+        console.log('Recent activity received:', activity);
         if (activity.activities && activity.activities.length > 0) {
             recentActivity.innerHTML = `
                 <div class="table-container">
@@ -540,7 +543,8 @@ async function loadClients() {
     const content = document.getElementById('clientsContent');
     try {
         const data = await api.getClients({ limit: 50 });
-        if (data.items && data.items.length > 0) {
+        console.log('Clients data:', data);
+        if (data.clients && data.clients.length > 0) {
             content.innerHTML = `
                 <div class="table-container">
                     <table>
@@ -549,14 +553,23 @@ async function loadClients() {
                                 <th>Name</th>
                                 <th>Email</th>
                                 <th>Status</th>
+                                <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
-                            ${data.items.map(client => `
+                            ${data.clients.map(client => `
                                 <tr>
                                     <td>${client.full_name}</td>
                                     <td>${client.email}</td>
-                                    <td>${client.is_active ? 'Active' : 'Inactive'}</td>
+                                    <td><span class="status-badge ${client.is_active ? 'active' : 'inactive'}">${client.is_active ? 'Active' : 'Inactive'}</span></td>
+                                    <td>
+                                        <button class="btn btn-primary btn-small" onclick="viewClientDetails(${client.id})">View</button>
+                                        ${client.is_active 
+                                            ? `<button class="btn btn-secondary btn-small" onclick="deactivateClient(${client.id})">Deactivate</button>`
+                                            : `<button class="btn btn-primary btn-small" onclick="activateClient(${client.id})">Activate</button>`
+                                        }
+                                        <button class="btn btn-danger btn-small" onclick="deleteClientConfirm(${client.id}, '${client.full_name.replace(/'/g, "\\'")}')">Delete</button>
+                                    </td>
                                 </tr>
                             `).join('')}
                         </tbody>
@@ -569,6 +582,160 @@ async function loadClients() {
     } catch (error) {
         console.error('Error loading clients:', error);
         content.innerHTML = '<div class="empty-state">Error loading clients</div>';
+    }
+}
+
+// View client details
+async function viewClientDetails(clientId) {
+    // Hide all pages
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    
+    // Show client detail page (reuse host detail page structure or create new)
+    const hostDetailPage = document.getElementById('hostDetailPage');
+    const hostDetailContent = document.getElementById('hostDetailContent');
+    const hostDetailTitle = document.getElementById('hostDetailTitle');
+    
+    hostDetailPage.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Client Details';
+    hostDetailContent.innerHTML = '<div class="loading">Loading client details...</div>';
+    
+    try {
+        const client = await api.getClient(clientId);
+        hostDetailTitle.textContent = client.full_name || 'Client Details';
+        
+        hostDetailContent.innerHTML = `
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+                <div class="host-detail-section">
+                    <h3>Basic Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Name:</div>
+                        <div class="detail-value">${client.full_name || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Email:</div>
+                        <div class="detail-value">${client.email || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Mobile Number:</div>
+                        <div class="detail-value">${client.mobile_number || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">ID Number:</div>
+                        <div class="detail-value">${client.id_number || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Status:</div>
+                        <div class="detail-value">
+                            <span class="status-badge ${client.is_active ? 'active' : 'inactive'}">
+                                ${client.is_active ? 'Active' : 'Inactive'}
+                            </span>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="host-detail-section">
+                    <h3>Additional Information</h3>
+                    <div class="detail-row">
+                        <div class="detail-label">Bio:</div>
+                        <div class="detail-value">${client.bio || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Fun Fact:</div>
+                        <div class="detail-value">${client.fun_fact || 'N/A'}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Created At:</div>
+                        <div class="detail-value">${new Date(client.created_at).toLocaleString()}</div>
+                    </div>
+                    <div class="detail-row">
+                        <div class="detail-label">Last Updated:</div>
+                        <div class="detail-value">${client.updated_at ? new Date(client.updated_at).toLocaleString() : 'N/A'}</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 24px; display: flex; gap: 12px;">
+                ${client.is_active 
+                    ? `<button class="btn btn-secondary" onclick="deactivateClient(${client.id}, true)">Deactivate Account</button>`
+                    : `<button class="btn btn-primary" onclick="activateClient(${client.id}, true)">Activate Account</button>`
+                }
+                <button class="btn btn-danger" onclick="deleteClientConfirm(${client.id}, '${client.full_name.replace(/'/g, "\\'")}', true)">Delete Account</button>
+                <button class="btn btn-secondary" onclick="backToClientsList()">Back to Clients</button>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading client details:', error);
+        hostDetailContent.innerHTML = `<div class="error-state">Error loading client details: ${error.message}</div>`;
+    }
+}
+
+// Back to clients list
+function backToClientsList() {
+    document.querySelectorAll('.page-content').forEach(p => {
+        p.style.display = 'none';
+    });
+    document.getElementById('clientsContent').parentElement.style.display = 'block';
+    document.getElementById('pageTitle').textContent = 'Clients';
+    loadClients();
+}
+
+// Activate client
+async function activateClient(clientId, reloadAfter = false) {
+    try {
+        await api.activateClient(clientId);
+        alert('Client account activated successfully');
+        if (reloadAfter) {
+            viewClientDetails(clientId);
+        } else {
+            loadClients();
+        }
+    } catch (error) {
+        alert('Error activating client: ' + error.message);
+    }
+}
+
+// Deactivate client
+async function deactivateClient(clientId, reloadAfter = false) {
+    if (!confirm('Are you sure you want to deactivate this client account?')) {
+        return;
+    }
+    
+    try {
+        await api.deactivateClient(clientId);
+        alert('Client account deactivated successfully');
+        if (reloadAfter) {
+            viewClientDetails(clientId);
+        } else {
+            loadClients();
+        }
+    } catch (error) {
+        alert('Error deactivating client: ' + error.message);
+    }
+}
+
+// Delete client confirmation
+function deleteClientConfirm(clientId, clientName, reloadAfter = false) {
+    if (!confirm(`Are you sure you want to permanently delete client "${clientName}"? This action cannot be undone.`)) {
+        return;
+    }
+    
+    deleteClient(clientId, reloadAfter);
+}
+
+// Delete client
+async function deleteClient(clientId, reloadAfter = false) {
+    try {
+        await api.deleteClient(clientId);
+        alert('Client deleted successfully');
+        if (reloadAfter) {
+            backToClientsList();
+        } else {
+            loadClients();
+        }
+    } catch (error) {
+        alert('Error deleting client: ' + error.message);
     }
 }
 
@@ -1120,6 +1287,189 @@ async function sendNotification(event) {
         
     } catch (error) {
         console.error('Error sending notification:', error);
+        resultDiv.innerHTML = `
+            <div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">
+                <strong>Error:</strong> ${error.message}
+            </div>
+        `;
+    } finally {
+        sendBtn.disabled = false;
+        sendBtn.textContent = 'Send Notification';
+    }
+}
+
+// Switch notification tab
+function switchNotificationTab(tab) {
+    const hostTab = document.getElementById('hostNotificationTab');
+    const clientTab = document.getElementById('clientNotificationTab');
+    const hostForm = document.getElementById('hostNotificationForm');
+    const clientForm = document.getElementById('clientNotificationForm');
+    
+    if (tab === 'host') {
+        hostTab.style.borderBottomColor = '#3498db';
+        hostTab.style.color = '#3498db';
+        hostTab.style.fontWeight = '600';
+        clientTab.style.borderBottomColor = 'transparent';
+        clientTab.style.color = '#65676b';
+        clientTab.style.fontWeight = '500';
+        hostForm.style.display = 'block';
+        clientForm.style.display = 'none';
+    } else {
+        clientTab.style.borderBottomColor = '#3498db';
+        clientTab.style.color = '#3498db';
+        clientTab.style.fontWeight = '600';
+        hostTab.style.borderBottomColor = 'transparent';
+        hostTab.style.color = '#65676b';
+        hostTab.style.fontWeight = '500';
+        hostForm.style.display = 'none';
+        clientForm.style.display = 'block';
+        loadClientsForNotifications();
+    }
+}
+
+// Toggle client selection
+function toggleClientSelection() {
+    const clientSelectionGroup = document.getElementById('clientSelectionGroup');
+    const clientSelect = document.getElementById('notificationClientSelect');
+    const recipientType = document.querySelector('input[name="clientRecipientType"]:checked').value;
+    
+    if (recipientType === 'specific') {
+        clientSelectionGroup.style.display = 'block';
+        if (clientSelect.options.length <= 1) {
+            loadClientsForNotifications();
+        }
+    } else {
+        clientSelectionGroup.style.display = 'none';
+        clientSelect.value = '';
+    }
+}
+
+// Load clients for notification dropdown
+async function loadClientsForNotifications() {
+    const clientSelect = document.getElementById('notificationClientSelect');
+    if (!clientSelect) return;
+    
+    try {
+        clientSelect.innerHTML = '<option value="">Loading clients...</option>';
+        const data = await api.getClients({ limit: 100 });
+        
+        if (data.clients && data.clients.length > 0) {
+            // Filter to only active clients
+            const activeClients = data.clients.filter(client => client.is_active === true);
+            
+            if (activeClients.length > 0) {
+                clientSelect.innerHTML = '<option value="">Select a client...</option>';
+                activeClients.forEach(client => {
+                    const option = document.createElement('option');
+                    option.value = client.id;
+                    option.textContent = `${client.full_name} (${client.email})`;
+                    clientSelect.appendChild(option);
+                });
+            } else {
+                clientSelect.innerHTML = '<option value="">No active clients found</option>';
+            }
+        } else {
+            clientSelect.innerHTML = '<option value="">No clients found</option>';
+        }
+    } catch (error) {
+        console.error('Error loading clients:', error);
+        clientSelect.innerHTML = '<option value="">Error loading clients</option>';
+    }
+}
+
+// Send client notification
+async function sendClientNotification(event) {
+    event.preventDefault();
+    
+    const form = document.getElementById('clientNotificationForm');
+    const resultDiv = document.getElementById('clientNotificationResult');
+    const sendBtn = document.getElementById('sendClientNotificationBtn');
+    
+    const title = document.getElementById('clientNotificationTitle').value.trim();
+    const message = document.getElementById('clientNotificationMessage').value.trim();
+    const type = document.getElementById('clientNotificationType').value;
+    const recipientType = document.querySelector('input[name="clientRecipientType"]:checked').value;
+    
+    if (!title || !message) {
+        resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Please fill in all required fields.</div>';
+        return;
+    }
+    
+    // Disable button
+    sendBtn.disabled = true;
+    sendBtn.textContent = 'Sending...';
+    resultDiv.innerHTML = '';
+    
+    try {
+        const notificationData = {
+            title: title,
+            message: message,
+            type: type
+        };
+        
+        console.log('Sending client notification:', notificationData);
+        console.log('Recipient type:', recipientType);
+        
+        let response;
+        if (recipientType === 'all') {
+            response = await api.broadcastToClients(notificationData);
+            console.log('Notification response:', response);
+        } else if (recipientType === 'specific') {
+            const clientId = document.getElementById('notificationClientSelect').value;
+            if (!clientId) {
+                resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Please select a client.</div>';
+                sendBtn.disabled = false;
+                sendBtn.textContent = 'Send Notification';
+                return;
+            }
+            
+            const specificNotificationData = {
+                user_type: 'client',
+                user_id: parseInt(clientId),
+                title: title,
+                message: message,
+                type: type
+            };
+            
+            response = await api.sendToUser(specificNotificationData);
+            console.log('Notification response:', response);
+        } else {
+            resultDiv.innerHTML = '<div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">Invalid recipient type selected.</div>';
+            sendBtn.disabled = false;
+            sendBtn.textContent = 'Send Notification';
+            return;
+        }
+        
+        // Show success message with details
+        // If we got here, the API call was successful (200 status)
+        const sentCount = response.sent_count || 0;
+        if (sentCount > 0) {
+            const recipientInfo = recipientType === 'specific' && response.user_id 
+                ? ` (Client ID: ${response.user_id})`
+                : ` (${sentCount} recipient(s))`;
+            resultDiv.innerHTML = `
+                <div style="color: #2e7d32; padding: 12px; background-color: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
+                    <strong>Success!</strong> ${response.message || 'Notification sent successfully'}${recipientInfo}
+                </div>
+            `;
+        } else {
+            // Even if sent_count is 0, if API returned 200, show the message from API
+            resultDiv.innerHTML = `
+                <div style="color: #f57c00; padding: 12px; background-color: #fff3e0; border-radius: 4px; margin-bottom: 12px;">
+                    <strong>Info:</strong> ${response.message || 'No active recipients found. Notification not sent.'}
+                </div>
+            `;
+        }
+        
+        // Reset form
+        form.reset();
+        document.getElementById('clientNotificationType').value = 'info';
+        document.querySelector('input[name="clientRecipientType"][value="all"]').checked = true;
+        document.getElementById('notificationClientSelect').value = '';
+        toggleClientSelection();
+        
+    } catch (error) {
+        console.error('Error sending client notification:', error);
         resultDiv.innerHTML = `
             <div style="color: #d32f2f; padding: 12px; background-color: #ffebee; border-radius: 4px;">
                 <strong>Error:</strong> ${error.message}
