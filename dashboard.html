@@ -6,6 +6,7 @@
     <title>Admin Dashboard - Car Rental</title>
     <link rel="stylesheet" href="styles.css">
     <link rel="stylesheet" href="dashboard.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
     <div class="dashboard-layout">
@@ -53,6 +54,16 @@
                 <div id="dashboardPage" class="page-content">
                     <div class="stats-grid" id="statsGrid">
                         <div class="loading">Loading statistics...</div>
+                    </div>
+                    <div class="graphs-section">
+                        <div class="graph-container">
+                            <h3>User Distribution</h3>
+                            <canvas id="userDistributionChart"></canvas>
+                        </div>
+                        <div class="graph-container">
+                            <h3>Car Verification Status</h3>
+                            <canvas id="verificationStatusChart"></canvas>
+                        </div>
                     </div>
                     <div class="content-section">
                         <h2>Recent Activity</h2>
