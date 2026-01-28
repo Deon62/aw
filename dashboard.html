@@ -23,6 +23,7 @@
                 <a href="#" class="nav-item" data-page="feedback">Feedback</a>
                 <a href="#" class="nav-item" data-page="notifications">Notifications</a>
                 <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
+                <a href="#" class="nav-item" data-page="bookings">Bookings</a>
                 <a href="#" class="nav-item" data-page="support">Support</a>
                 <a href="#" class="nav-item" data-page="admins" id="adminsNavItem" style="display: none;">Admins</a>
             </nav>
@@ -326,6 +327,42 @@
                         </div>
                         <div id="paymentMethodDetailContent">
                             <div class="loading">Loading payment method details...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="bookingsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Bookings</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="bookingStatusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="confirmed">Confirmed</option>
+                                    <option value="active">Active</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                    <option value="rejected">Rejected</option>
+                                </select>
+                                <input type="text" id="bookingSearch" placeholder="Search by booking ID, client, host, or car..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 350px;">
+                            </div>
+                        </div>
+                        <div id="bookingsContent">
+                            <div class="loading">Loading bookings...</div>
+                        </div>
+                        <div id="bookingsPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+                    </div>
+                </div>
+
+                <div id="bookingDetailPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 24px;">
+                            <button class="btn btn-secondary" onclick="backToBookingsList()" style="padding: 8px 16px;">← Back</button>
+                            <h2 id="bookingDetailTitle" style="margin: 0;">Booking Details</h2>
+                        </div>
+                        <div id="bookingDetailContent">
+                            <div class="loading">Loading booking details...</div>
                         </div>
                     </div>
                 </div>

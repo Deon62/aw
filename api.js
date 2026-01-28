@@ -206,5 +206,24 @@ const api = {
         body: JSON.stringify({ message })
     }),
     closeSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}/close`, { method: 'PUT' }),
-    reopenSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}/reopen`, { method: 'PUT' })
+    reopenSupportConversation: (id) => apiRequest(`/admin/support/conversations/${id}/reopen`, { method: 'PUT' }),
+
+    // Bookings
+    getBookings: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/bookings${queryString ? '?' + queryString : ''}`);
+    },
+    getBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}`),
+    updateBookingStatus: (bookingId, newStatus, reason = null) => {
+        const params = new URLSearchParams({ new_status: newStatus });
+        if (reason) params.append('reason', reason);
+        return apiRequest(`/admin/bookings/${bookingId}/status?${params.toString()}`, { method: 'PUT' });
+    },
+    cancelBooking: (bookingId, reason = null) => {
+        const params = reason ? new URLSearchParams({ reason }) : '';
+        return apiRequest(`/admin/bookings/${bookingId}/cancel${params ? '?' + params.toString() : ''}`, { method: 'POST' });
+    },
+    confirmBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}/confirm`, { method: 'POST' }),
+    deleteBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}`, { method: 'DELETE' }),
+    getBookingStats: () => apiRequest('/admin/bookings/stats')
 };
