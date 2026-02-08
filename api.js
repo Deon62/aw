@@ -1,4 +1,4 @@
-const API_BASE_URL = 'http://localhost:8001/api/v1';
+const API_BASE_URL = 'http://192.168.1.31:8001/api/v1';
 
 // Get stored admin token
 function getAuthToken() {
