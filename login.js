@@ -1,5 +1,20 @@
 const API_BASE_URL = 'https://api.ardena.xyz/api/v1';
 
+// Password visibility toggle
+document.getElementById('passwordToggle').addEventListener('click', () => {
+    const passwordInput = document.getElementById('password');
+    const toggleBtn = document.getElementById('passwordToggle');
+    if (passwordInput.type === 'password') {
+        passwordInput.type = 'text';
+        toggleBtn.textContent = 'Hide';
+        toggleBtn.setAttribute('aria-label', 'Hide password');
+    } else {
+        passwordInput.type = 'password';
+        toggleBtn.textContent = 'Show';
+        toggleBtn.setAttribute('aria-label', 'Show password');
+    }
+});
+
 document.getElementById('loginForm').addEventListener('submit', async (e) => {
     e.preventDefault();
     
