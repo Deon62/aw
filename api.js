@@ -1,4 +1,7 @@
-const API_BASE_URL = 'https://api.ardena.xyz/api/v1';
+// Use local API when admin is served from localhost; otherwise production
+const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
+    ? 'http://localhost:8001/api/v1'
+    : 'https://api.ardena.xyz/api/v1';
 
 // Get stored admin token
 function getAuthToken() {
@@ -78,6 +81,7 @@ const api = {
     getDashboardStats: () => apiRequest('/admin/dashboard/stats'),
     getRecentActivity: () => apiRequest('/admin/dashboard/activity'),
     getVerificationQueueStats: () => apiRequest('/admin/dashboard/verification-queue'),
+    getRevenueStats: () => apiRequest('/admin/dashboard/revenue'),
 
     // Hosts
     getHosts: (params = {}) => {

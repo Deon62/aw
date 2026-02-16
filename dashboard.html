@@ -24,6 +24,7 @@
                 <a href="#" class="nav-item" data-page="notifications">Notifications</a>
                 <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
                 <a href="#" class="nav-item" data-page="bookings">Bookings</a>
+                <a href="#" class="nav-item" data-page="revenue">Revenue</a>
                 <a href="#" class="nav-item" data-page="support">Support</a>
                 <a href="#" class="nav-item" data-page="admins" id="adminsNavItem" style="display: none;">Admins</a>
             </nav>
@@ -363,6 +364,33 @@
                         </div>
                         <div id="bookingDetailContent">
                             <div class="loading">Loading booking details...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div id="revenuePage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <h2 style="margin-bottom: 24px;">Revenue Stream</h2>
+                        <div class="stats-grid" id="revenueStatsGrid">
+                            <div class="loading">Loading revenue...</div>
+                        </div>
+                        <div class="revenue-graphs-section">
+                            <div class="graph-container revenue-chart-wrap">
+                                <h3>Revenue Over Time</h3>
+                                <canvas id="revenueStreamChart"></canvas>
+                            </div>
+                            <div class="graph-container revenue-chart-wrap">
+                                <h3>Money Flow</h3>
+                                <canvas id="moneyFlowChart"></canvas>
+                            </div>
+                            <div class="graph-container revenue-chart-wrap">
+                                <h3>Paid Bookings Over Time</h3>
+                                <canvas id="paidBookingsChart"></canvas>
+                            </div>
+                            <div class="graph-container revenue-chart-wrap">
+                                <h3>Revenue Composition</h3>
+                                <canvas id="revenueCompositionChart"></canvas>
+                            </div>
                         </div>
                     </div>
                 </div>

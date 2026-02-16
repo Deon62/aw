@@ -293,6 +293,11 @@ body {
 }
 
 /* Tables */
+.recent-activity-actions {
+    margin-top: 16px;
+    text-align: center;
+}
+
 .table-container {
     overflow-x: auto;
     width: 100%;
@@ -646,4 +651,21 @@ table tr:hover {
     display: inline;
     font-weight: normal;
     margin-left: 4px;
+}
+
+/* Revenue page */
+.revenue-graphs-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+}
+
+.revenue-chart-wrap {
+    min-height: 280px;
+}
+
+@media (max-width: 900px) {
+    .revenue-graphs-section {
+        grid-template-columns: 1fr;
+    }
 }
