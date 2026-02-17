@@ -1,7 +1,27 @@
-// Use local API when admin is served from localhost; otherwise production
-const API_BASE_URL = (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1')
-    ? 'http://localhost:8001/api/v1'
-    : 'https://api.ardena.xyz/api/v1';
+// Use local API when admin is from localhost, 127.0.0.1, file://, or explicit override
+function getApiBaseUrl() {
+    const override = localStorage.getItem('admin_api_base_url');
+    if (override) return override.replace(/\/$/, '') + (override.endsWith('/api/v1') ? '' : '/api/v1');
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
+    return isLocal ? 'http://localhost:8001/api/v1' : 'https://api.ardena.xyz/api/v1';
+}
+const API_BASE_URL = getApiBaseUrl();
+
+// Ping the current API to verify connectivity (call on load to confirm backend is reached)
+async function checkApiReachable() {
+    const url = API_BASE_URL + '/ping';
+    try {
+        const r = await fetch(url);
+        const ok = r.ok;
+        const data = ok ? await r.json().catch(() => ({})) : {};
+        console.log('[Admin API]', API_BASE_URL, ok ? 'OK' : r.status, data);
+        return { ok, status: r.status, data };
+    } catch (e) {
+        console.warn('[Admin API] Cannot reach', url, e.message);
+        return { ok: false, status: 0, error: e.message };
+    }
+}
 
 // Get stored admin token
 function getAuthToken() {

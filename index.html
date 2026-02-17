@@ -27,8 +27,25 @@
                 <div id="errorMessage" class="error-message"></div>
                 <button type="submit" class="login-button">Sign In</button>
             </form>
+            <p id="apiStatus" style="margin-top: 12px; font-size: 12px; color: #666;"></p>
         </div>
     </div>
     <script src="login.js"></script>
+    <script>
+        (async function() {
+            const el = document.getElementById('apiStatus');
+            const base = typeof getApiBaseUrl === 'function' ? getApiBaseUrl() : (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' ? 'http://localhost:8001/api/v1' : 'https://api.ardena.xyz/api/v1');
+            el.textContent = 'API: ' + base + ' …';
+            try {
+                const r = await fetch(base + '/ping');
+                const j = r.ok ? await r.json().catch(() => ({})) : {};
+                el.textContent = 'API: ' + base + ' ' + (r.ok ? '✓ OK' : '✗ ' + r.status);
+                el.style.color = r.ok ? '#2e7d32' : '#c62828';
+            } catch (e) {
+                el.textContent = 'API: ' + base + ' ✗ unreachable (' + e.message + ')';
+                el.style.color = '#c62828';
+            }
+        })();
+    </script>
 </body>
 </html>

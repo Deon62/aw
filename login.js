@@ -1,4 +1,12 @@
-const API_BASE_URL = 'https://api.ardena.xyz/api/v1';
+// Same logic as api.js: use local backend when on localhost, 127.0.0.1, or file://
+function getApiBaseUrl() {
+    const override = localStorage.getItem('admin_api_base_url');
+    if (override) return override.replace(/\/$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
+    const host = window.location.hostname;
+    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
+    return isLocal ? 'http://localhost:8001/api/v1' : 'https://api.ardena.xyz/api/v1';
+}
+const API_BASE_URL = getApiBaseUrl();
 
 // Password visibility toggle
 document.getElementById('passwordToggle').addEventListener('click', () => {
@@ -41,7 +49,15 @@ document.getElementById('loginForm').addEventListener('submit', async (e) => {
             })
         });
         
-        const data = await response.json();
+        const contentType = response.headers.get('content-type') || '';
+        let data = {};
+        if (contentType.includes('application/json')) {
+            data = await response.json();
+        } else {
+            const text = await response.text();
+            if (response.status >= 500) throw new Error('Backend unreachable (e.g. 502). Is the API running at ' + API_BASE_URL + '?');
+            throw new Error(text || 'Server returned non-JSON. Check API URL.');
+        }
         
         if (!response.ok) {
             throw new Error(data.detail || 'Login failed');
