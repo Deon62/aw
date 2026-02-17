@@ -229,5 +229,16 @@ const api = {
     },
     confirmBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}/confirm`, { method: 'POST' }),
     deleteBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}`, { method: 'DELETE' }),
-    getBookingStats: () => apiRequest('/admin/bookings/stats')
+    getBookingStats: () => apiRequest('/admin/bookings/stats'),
+
+    // Withdrawals
+    getWithdrawals: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/withdrawals${queryString ? '?' + queryString : ''}`);
+    },
+    getWithdrawal: (id) => apiRequest(`/admin/withdrawals/${id}`),
+    updateWithdrawalStatus: (id, data) => apiRequest(`/admin/withdrawals/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data)
+    })
 };

@@ -24,6 +24,7 @@
                 <a href="#" class="nav-item" data-page="notifications">Notifications</a>
                 <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
                 <a href="#" class="nav-item" data-page="bookings">Bookings</a>
+                <a href="#" class="nav-item" data-page="withdrawals">Withdrawals</a>
                 <a href="#" class="nav-item" data-page="revenue">Revenue</a>
                 <a href="#" class="nav-item" data-page="support">Support</a>
                 <a href="#" class="nav-item" data-page="admins" id="adminsNavItem" style="display: none;">Admins</a>
@@ -368,6 +369,28 @@
                     </div>
                 </div>
 
+                <div id="withdrawalsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Withdrawals</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="withdrawalStatusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="rejected">Rejected</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <input type="number" id="withdrawalHostIdFilter" placeholder="Host ID..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 120px;">
+                            </div>
+                        </div>
+                        <div id="withdrawalsContent">
+                            <div class="loading">Loading withdrawals...</div>
+                        </div>
+                        <div id="withdrawalsPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+                    </div>
+                </div>
+
                 <div id="revenuePage" class="page-content" style="display: none;">
                     <div class="content-section">
                         <h2 style="margin-bottom: 24px;">Revenue Stream</h2>
@@ -528,6 +551,30 @@
                         <button type="submit" class="btn btn-primary" id="savePasswordBtn">Change Password</button>
                     </div>
                 </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Withdrawal status modal -->
+    <div id="withdrawalStatusModal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header">
+                <h2 id="withdrawalStatusModalTitle">Update Withdrawal</h2>
+                <button class="modal-close" onclick="closeWithdrawalStatusModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="withdrawalStatusModalId" value="">
+                <input type="hidden" id="withdrawalStatusModalAction" value="">
+                <p id="withdrawalStatusModalSummary" style="margin-bottom: 16px;"></p>
+                <div class="form-group">
+                    <label for="withdrawalStatusAdminNotes">Notes (optional)</label>
+                    <textarea id="withdrawalStatusAdminNotes" rows="3" placeholder="e.g. M-Pesa ref, bank ref..." style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px;"></textarea>
+                </div>
+                <div id="withdrawalStatusFormError" style="color: #d32f2f; margin-bottom: 15px;"></div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeWithdrawalStatusModal()">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="withdrawalStatusConfirmBtn" onclick="confirmWithdrawalStatusUpdate()">Confirm</button>
+                </div>
             </div>
         </div>
     </div>
