@@ -170,6 +170,7 @@ function loadPage(page) {
         'payment-methods': 'Payment Methods',
         bookings: 'Bookings',
         withdrawals: 'Withdrawals',
+        subscribers: 'Subscribers',
         revenue: 'Revenue',
         support: 'Support',
         admins: 'Admins'
@@ -229,6 +230,9 @@ function loadPage(page) {
         case 'withdrawals':
             setupWithdrawalFilters();
             loadWithdrawals();
+            break;
+        case 'subscribers':
+            loadSubscribers();
             break;
     }
 }
@@ -2734,6 +2738,206 @@ async function loadFeedback() {
         console.error('Error loading feedback:', error);
         content.innerHTML = '<div class="empty-state">Error loading feedback</div>';
     }
+}
+
+// ==================== SUBSCRIBERS (NEWSLETTER) ====================
+
+let subscribersCurrentPage = 1;
+const subscribersLimit = 20;
+let subscribersHandlersAttached = false;
+let subscribersTrendChart = null;
+
+function attachSubscribersHandlers() {
+    if (subscribersHandlersAttached) return;
+    subscribersHandlersAttached = true;
+    const seeBtn = document.getElementById('seeSubscribersBtn');
+    const filterEl = document.getElementById('subscribersFilter');
+    const sendBtn = document.getElementById('sendNewsletterBtn');
+    if (seeBtn) {
+        seeBtn.addEventListener('click', () => {
+            const section = document.getElementById('subscribersListSection');
+            if (!section) return;
+            if (section.style.display === 'none') {
+                section.style.display = 'block';
+                seeBtn.textContent = 'Hide subscribers';
+                loadSubscribersList(1);
+            } else {
+                section.style.display = 'none';
+                seeBtn.textContent = 'See subscribers';
+            }
+        });
+    }
+    if (filterEl) filterEl.addEventListener('change', () => loadSubscribersList(1));
+    if (sendBtn) sendBtn.addEventListener('click', sendNewsletterToSubscribers);
+}
+
+function createSubscribersTrendChart(labels, subscriptions, unsubscriptions) {
+    const canvas = document.getElementById('subscribersTrendChart');
+    if (!canvas) return;
+    if (subscribersTrendChart) subscribersTrendChart.destroy();
+
+    const ctx = canvas.getContext('2d');
+    subscribersTrendChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: labels.map(l => {
+                const d = new Date(l);
+                return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+            }),
+            datasets: [
+                {
+                    label: 'Subscriptions',
+                    data: subscriptions,
+                    borderColor: 'rgba(52, 152, 219, 1)',
+                    backgroundColor: 'rgba(52, 152, 219, 0.1)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                },
+                {
+                    label: 'Unsubscriptions',
+                    data: unsubscriptions,
+                    borderColor: 'rgba(231, 76, 60, 1)',
+                    backgroundColor: 'rgba(231, 76, 60, 0.1)',
+                    fill: true,
+                    tension: 0.35,
+                    borderWidth: 2,
+                    pointRadius: 3,
+                    pointHoverRadius: 5
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            aspectRatio: 2.5,
+            plugins: {
+                legend: { position: 'top' }
+            },
+            scales: {
+                x: {
+                    grid: { display: false },
+                    ticks: { maxRotation: 45, font: { size: 11 } }
+                },
+                y: {
+                    beginAtZero: true,
+                    ticks: { stepSize: 1 },
+                    grid: { color: 'rgba(0,0,0,0.06)' }
+                }
+            }
+        }
+    });
+}
+
+async function loadSubscribersList(page) {
+    const tbody = document.getElementById('subscribersTableBody');
+    const paginationEl = document.getElementById('subscribersPagination');
+    if (!tbody || !paginationEl) return;
+    subscribersCurrentPage = page;
+    const filterEl = document.getElementById('subscribersFilter');
+    const subscribedOnly = filterEl && filterEl.value === 'true';
+    tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; color: #666; text-align: center;">Loading...</td></tr>';
+    try {
+        const data = await api.getSubscribers({
+            page: page,
+            limit: subscribersLimit,
+            subscribed_only: subscribedOnly
+        });
+        const list = data.subscribers || [];
+        const total = data.total || 0;
+        const totalPages = data.total_pages || 1;
+        if (list.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; color: #666; text-align: center;">No subscribers found.</td></tr>';
+        } else {
+            tbody.innerHTML = list.map(s => `
+                <tr>
+                    <td>${escapeHtml(s.email)}</td>
+                    <td>${s.is_subscribed ? 'Subscribed' : 'Unsubscribed'}</td>
+                    <td>${s.created_at ? new Date(s.created_at).toLocaleString() : '—'}</td>
+                </tr>
+            `).join('');
+        }
+        paginationEl.innerHTML = '';
+        if (totalPages > 1) {
+            const prevBtn = document.createElement('button');
+            prevBtn.className = 'btn btn-secondary';
+            prevBtn.textContent = 'Previous';
+            prevBtn.disabled = page <= 1;
+            prevBtn.onclick = () => loadSubscribersList(page - 1);
+            const nextBtn = document.createElement('button');
+            nextBtn.className = 'btn btn-secondary';
+            nextBtn.textContent = 'Next';
+            nextBtn.disabled = page >= totalPages;
+            nextBtn.onclick = () => loadSubscribersList(page + 1);
+            const span = document.createElement('span');
+            span.textContent = `Page ${page} of ${totalPages} (${total} total)`;
+            span.style.marginLeft = '8px';
+            paginationEl.appendChild(prevBtn);
+            paginationEl.appendChild(nextBtn);
+            paginationEl.appendChild(span);
+        }
+    } catch (e) {
+        tbody.innerHTML = '<tr><td colspan="3" style="padding: 20px; color: #c62828; text-align: center;">Error loading subscribers. ' + (e.message || '') + '</td></tr>';
+    }
+}
+
+async function sendNewsletterToSubscribers() {
+    const subjectEl = document.getElementById('newsletterSubject');
+    const bodyEl = document.getElementById('newsletterBody');
+    const resultEl = document.getElementById('newsletterResult');
+    const sendBtn = document.getElementById('sendNewsletterBtn');
+    if (!subjectEl || !bodyEl || !resultEl || !sendBtn) return;
+    const subject = subjectEl.value.trim();
+    const body = bodyEl.value.trim();
+    if (!subject || !body) {
+        resultEl.className = 'form-result error';
+        resultEl.textContent = 'Please enter subject and body.';
+        return;
+    }
+    sendBtn.disabled = true;
+    resultEl.className = 'form-result';
+    resultEl.textContent = 'Sending…';
+    try {
+        const data = await api.sendNewsletter({ subject, body_html: body });
+        resultEl.className = 'form-result success';
+        resultEl.textContent = data.message || `Sent: ${data.sent || 0}, Failed: ${data.failed || 0}`;
+    } catch (e) {
+        resultEl.className = 'form-result error';
+        resultEl.textContent = e.message || 'Failed to send';
+    }
+    sendBtn.disabled = false;
+}
+
+function escapeHtml(str) {
+    if (str == null) return '';
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+}
+
+async function loadSubscribers() {
+    attachSubscribersHandlers();
+    const countEl = document.getElementById('subscribersCountDisplay');
+    try {
+        const [countData, trendsData] = await Promise.all([
+            api.getSubscriberCount({ subscribed_only: 'true' }),
+            api.getSubscriberTrends({ days: 30 })
+        ]);
+        if (countEl) countEl.textContent = countData.count != null ? countData.count : '—';
+        const labels = trendsData.labels || [];
+        const subscriptions = trendsData.subscriptions || [];
+        const unsubscriptions = trendsData.unsubscriptions || [];
+        createSubscribersTrendChart(labels, subscriptions, unsubscriptions);
+    } catch (e) {
+        if (countEl) countEl.textContent = '—';
+        console.error('Error loading subscribers:', e);
+    }
+    const section = document.getElementById('subscribersListSection');
+    const seeBtn = document.getElementById('seeSubscribersBtn');
+    if (section) section.style.display = 'none';
+    if (seeBtn) seeBtn.textContent = 'See subscribers';
 }
 
 // ==================== ADMIN MANAGEMENT ====================

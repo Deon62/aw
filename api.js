@@ -260,5 +260,23 @@ const api = {
     updateWithdrawalStatus: (id, data) => apiRequest(`/admin/withdrawals/${id}`, {
         method: 'PATCH',
         body: JSON.stringify(data)
+    }),
+
+    // Subscribers (newsletter)
+    getSubscribers: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/subscribers${queryString ? '?' + queryString : ''}`);
+    },
+    getSubscriberCount: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/subscribers/count${queryString ? '?' + queryString : ''}`);
+    },
+    getSubscriberTrends: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/subscribers/trends${queryString ? '?' + queryString : ''}`);
+    },
+    sendNewsletter: (data) => apiRequest('/admin/subscribers/send', {
+        method: 'POST',
+        body: JSON.stringify(data)
     })
 };

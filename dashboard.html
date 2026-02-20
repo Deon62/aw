@@ -25,6 +25,7 @@
                 <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
                 <a href="#" class="nav-item" data-page="bookings">Bookings</a>
                 <a href="#" class="nav-item" data-page="withdrawals">Withdrawals</a>
+                <a href="#" class="nav-item" data-page="subscribers">Subscribers</a>
                 <a href="#" class="nav-item" data-page="revenue">Revenue</a>
                 <a href="#" class="nav-item" data-page="support">Support</a>
                 <a href="#" class="nav-item" data-page="admins" id="adminsNavItem" style="display: none;">Admins</a>
@@ -388,6 +389,66 @@
                             <div class="loading">Loading withdrawals...</div>
                         </div>
                         <div id="withdrawalsPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+                    </div>
+                </div>
+
+                <div id="subscribersPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div class="stats-grid" id="subscribersStatsGrid">
+                            <div class="stat-card">
+                                <div class="stat-label">Subscribers</div>
+                                <div class="stat-value" id="subscribersCountDisplay">—</div>
+                                <div class="stat-subvalue">currently subscribed</div>
+                            </div>
+                        </div>
+                        <div class="graphs-section">
+                            <div class="graph-container" style="grid-column: 1 / -1;">
+                                <h3>Subscription &amp; unsubscription trend</h3>
+                                <canvas id="subscribersTrendChart"></canvas>
+                            </div>
+                        </div>
+                        <div class="content-section" style="margin-top: 0; padding: 24px;">
+                            <h2>Send newsletter</h2>
+                            <p class="form-hint">Sends to all currently subscribed addresses. Include an unsubscribe link in the body.</p>
+                            <div class="form-group">
+                                <label for="newsletterSubject">Subject</label>
+                                <input type="text" id="newsletterSubject" class="form-input" placeholder="Newsletter subject">
+                            </div>
+                            <div class="form-group">
+                                <label for="newsletterBody">Body (HTML)</label>
+                                <textarea id="newsletterBody" class="form-input" rows="6" placeholder="<p>Hello,</p><p>...</p><p><a href='https://yoursite.com/unsubscribe'>Unsubscribe</a></p>"></textarea>
+                            </div>
+                            <button type="button" class="btn btn-primary" id="sendNewsletterBtn">Send to all subscribers</button>
+                            <div id="newsletterResult" class="form-result"></div>
+                        </div>
+                        <div class="content-section" style="margin-top: 24px;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                                <h2 style="margin: 0;">Subscriber list</h2>
+                                <button type="button" class="btn btn-secondary" id="seeSubscribersBtn">See subscribers</button>
+                            </div>
+                            <div id="subscribersListSection" style="display: none;">
+                                <div style="margin-bottom: 12px;">
+                                    <label class="form-label">Show</label>
+                                    <select id="subscribersFilter" class="form-select">
+                                        <option value="true">Subscribed only</option>
+                                        <option value="false">All (including unsubscribed)</option>
+                                    </select>
+                                </div>
+                                <div class="table-container">
+                                    <table>
+                                        <thead>
+                                            <tr>
+                                                <th>Email</th>
+                                                <th>Status</th>
+                                                <th>Subscribed at</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="subscribersTableBody"></tbody>
+                                    </table>
+                                </div>
+                                <div id="subscribersPagination" style="margin-top: 16px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;"></div>
+                            </div>
+                        </div>
                     </div>
                 </div>
 

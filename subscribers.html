@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Subscribers – Admin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 0 auto; padding: 1rem; }
+    h1 { margin-top: 0; }
+    .card { border: 1px solid #ddd; border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
+    .row { display: flex; gap: 1rem; align-items: center; flex-wrap: wrap; margin-bottom: 0.5rem; }
+    label { min-width: 100px; }
+    input[type="url"], input[type="text"], input[type="password"] { flex: 1; min-width: 200px; padding: 0.5rem; }
+    textarea { width: 100%; min-height: 120px; padding: 0.5rem; font-family: inherit; }
+    button { padding: 0.5rem 1rem; cursor: pointer; background: #333; color: #fff; border: none; border-radius: 6px; }
+    button:disabled { opacity: 0.6; cursor: not-allowed; }
+    button.secondary { background: #666; }
+    .count { font-size: 1.5rem; font-weight: 600; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #eee; }
+    .msg { padding: 0.5rem; border-radius: 6px; margin-top: 0.5rem; }
+    .msg.err { background: #fee; color: #c00; }
+    .msg.ok { background: #efe; color: #060; }
+    .pagination { margin-top: 1rem; display: flex; gap: 0.5rem; align-items: center; }
+  </style>
+</head>
+<body>
+  <h1>Newsletter Subscribers</h1>
+
+  <div class="card">
+    <h3>API config</h3>
+    <div class="row">
+      <label>API base URL</label>
+      <input type="url" id="apiBase" placeholder="https://api.ardena.xyz" />
+    </div>
+    <div class="row">
+      <label>Admin token</label>
+      <input type="password" id="adminToken" placeholder="Bearer token from admin login" />
+    </div>
+    <div class="row">
+      <button type="button" id="saveConfig">Save and load</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Subscriber count</h3>
+    <p class="count" id="subscriberCount">—</p>
+    <button type="button" id="refreshCount">Refresh</button>
+  </div>
+
+  <div class="card">
+    <h3>Subscriber list</h3>
+    <div class="row">
+      <label>Show</label>
+      <select id="subscribedOnly">
+        <option value="true">Subscribed only</option>
+        <option value="false">All (including unsubscribed)</option>
+      </select>
+      <button type="button" id="refreshList">Refresh list</button>
+    </div>
+    <table>
+      <thead>
+        <tr><th>Email</th><th>Status</th><th>Subscribed at</th></tr>
+      </thead>
+      <tbody id="subscriberTable"></tbody>
+    </table>
+    <div class="pagination">
+      <button type="button" id="prevPage" class="secondary">Previous</button>
+      <span id="pageInfo">Page 1 of 1</span>
+      <button type="button" id="nextPage" class="secondary">Next</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3>Send email to all subscribers</h3>
+    <p>Send one email to every currently subscribed address. Include an unsubscribe link in the body (e.g. your site's unsubscribe page).</p>
+    <div class="row">
+      <label>Subject</label>
+      <input type="text" id="emailSubject" placeholder="Newsletter subject" />
+    </div>
+    <div class="row">
+      <label>Body (HTML)</label>
+    </div>
+    <textarea id="emailBody" placeholder="<p>Hello,</p><p>...</p><p><a href='https://yoursite.com/unsubscribe'>Unsubscribe</a></p>"></textarea>
+    <button type="button" id="sendNewsletter">Send to all subscribers</button>
+    <div id="sendResult"></div>
+  </div>
+
+  <script>
+    const STORAGE_API = 'subscribers_admin_apiBase';
+    const STORAGE_TOKEN = 'subscribers_admin_token';
+
+    function getApiBase() { return (document.getElementById('apiBase').value || localStorage.getItem(STORAGE_API) || '').replace(/\/$/, ''); }
+    function getToken() { return document.getElementById('adminToken').value || localStorage.getItem(STORAGE_TOKEN) || ''; }
+
+    function api(path, options = {}) {
+      const base = getApiBase();
+      if (!base) return Promise.reject(new Error('Set API base URL'));
+      const url = base + path;
+      const headers = { 'Content-Type': 'application/json', ...options.headers };
+      if (getToken()) headers['Authorization'] = 'Bearer ' + getToken().replace(/^Bearer\s+/i, '');
+      return fetch(url, { ...options, headers }).then(r => r.json().catch(() => ({})));
+    }
+
+    document.getElementById('saveConfig').onclick = () => {
+      localStorage.setItem(STORAGE_API, getApiBase());
+      if (getToken()) localStorage.setItem(STORAGE_TOKEN, getToken());
+      loadCount();
+      loadList(1);
+    };
+
+    let currentPage = 1;
+    const limit = 20;
+
+    function loadCount() {
+      const q = '?subscribed_only=true';
+      api('/admin/subscribers/count' + q).then(d => {
+        document.getElementById('subscriberCount').textContent = d.count != null ? d.count : '—';
+      }).catch(() => { document.getElementById('subscriberCount').textContent = '—'; });
+    }
+
+    function loadList(page) {
+      currentPage = page;
+      const sub = document.getElementById('subscribedOnly').value;
+      api('/admin/subscribers?page=' + page + '&limit=' + limit + '&subscribed_only=' + sub).then(d => {
+        const tbody = document.getElementById('subscriberTable');
+        tbody.innerHTML = (d.subscribers || []).map(s =>
+          '<tr><td>' + s.email + '</td><td>' + (s.is_subscribed ? 'Subscribed' : 'Unsubscribed') + '</td><td>' + (s.created_at ? new Date(s.created_at).toLocaleString() : '') + '</td></tr>'
+        ).join('');
+        const total = d.total || 0;
+        const totalPages = d.total_pages || 1;
+        document.getElementById('pageInfo').textContent = 'Page ' + page + ' of ' + totalPages + ' (' + total + ' total)';
+        document.getElementById('prevPage').disabled = page <= 1;
+        document.getElementById('nextPage').disabled = page >= totalPages;
+      }).catch(() => {
+        document.getElementById('subscriberTable').innerHTML = '<tr><td colspan="3">Failed to load. Set API URL and token, then Save and load.</td></tr>';
+      });
+    }
+
+    document.getElementById('refreshCount').onclick = () => loadCount();
+    document.getElementById('refreshList').onclick = () => loadList(currentPage);
+    document.getElementById('subscribedOnly').onchange = () => loadList(1);
+    document.getElementById('prevPage').onclick = () => loadList(currentPage - 1);
+    document.getElementById('nextPage').onclick = () => loadList(currentPage + 1);
+
+    document.getElementById('sendNewsletter').onclick = () => {
+      const subject = document.getElementById('emailSubject').value.trim();
+      const body = document.getElementById('emailBody').value.trim();
+      const resultEl = document.getElementById('sendResult');
+      if (!subject || !body) {
+        resultEl.className = 'msg err';
+        resultEl.textContent = 'Please fill subject and body.';
+        return;
+      }
+      resultEl.textContent = 'Sending…';
+      resultEl.className = 'msg';
+      document.getElementById('sendNewsletter').disabled = true;
+      api('/admin/subscribers/send', {
+        method: 'POST',
+        body: JSON.stringify({ subject, body_html: body })
+      }).then(d => {
+        resultEl.className = 'msg ok';
+        resultEl.textContent = d.message || ('Sent: ' + d.sent + ', Failed: ' + d.failed);
+        document.getElementById('sendNewsletter').disabled = false;
+      }).catch(e => {
+        resultEl.className = 'msg err';
+        resultEl.textContent = e.message || 'Failed to send';
+        document.getElementById('sendNewsletter').disabled = false;
+      });
+    };
+
+    if (localStorage.getItem(STORAGE_API)) {
+      document.getElementById('apiBase').value = localStorage.getItem(STORAGE_API);
+      document.getElementById('adminToken').value = localStorage.getItem(STORAGE_TOKEN) || '';
+      loadCount();
+      loadList(1);
+    }
+  </script>
+</body>
+</html>

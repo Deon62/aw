@@ -414,6 +414,57 @@ table tr:hover {
     color: #666;
 }
 
+/* Form helpers (subscribers, etc.) */
+.form-hint {
+    font-size: 13px;
+    color: #666;
+    margin-bottom: 16px;
+}
+.form-group {
+    margin-bottom: 16px;
+}
+.form-group label,
+.form-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #333;
+    margin-bottom: 6px;
+}
+.form-input,
+.form-select {
+    width: 100%;
+    max-width: 560px;
+    padding: 10px 12px;
+    font-size: 14px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-family: inherit;
+}
+.form-input:focus,
+.form-select:focus {
+    outline: none;
+    border-color: #0066cc;
+}
+textarea.form-input {
+    min-height: 120px;
+    resize: vertical;
+}
+.form-result {
+    margin-top: 12px;
+    padding: 10px 12px;
+    border-radius: 4px;
+    font-size: 14px;
+}
+.form-result.success {
+    background: #e8f5e9;
+    color: #2e7d32;
+}
+.form-result.error {
+    background: #ffebee;
+    color: #c62828;
+}
+
 /* Modal */
 .modal {
     position: fixed;
