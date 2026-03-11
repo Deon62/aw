@@ -43,13 +43,11 @@ async function loadAdminInfo() {
             const initials = (admin.full_name || admin.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
             profileAvatar.textContent = initials;
             console.log('Admin profile loaded successfully');
-            
-            // Show/hide admin management based on role
-            const adminsNavItem = document.getElementById('adminsNavItem');
-            if (adminsNavItem && admin.role === 'super_admin') {
-                adminsNavItem.style.display = 'block';
-            }
-            
+
+            // Cache role globally for access control
+            window.currentAdminRole = admin.role;
+            configureNavigationForRole(admin.role);
+
             return;
         }
     } catch (error) {
@@ -64,13 +62,11 @@ async function loadAdminInfo() {
                 const initials = (adminInfo.full_name || adminInfo.email || 'A').split(' ').map(n => n[0]).join('').toUpperCase().substring(0, 2);
                 profileAvatar.textContent = initials;
                 console.log('Admin profile loaded from localStorage');
-                
-                // Show/hide admin management based on role
-                const adminsNavItem = document.getElementById('adminsNavItem');
-                if (adminsNavItem && adminInfo.role === 'super_admin') {
-                    adminsNavItem.style.display = 'block';
-                }
-                
+
+                // Cache role globally for access control
+                window.currentAdminRole = adminInfo.role;
+                configureNavigationForRole(adminInfo.role);
+
                 return;
             }
         } catch (localError) {
@@ -100,6 +96,26 @@ function setupNavigation() {
             // Load page
             loadPage(page);
         });
+    });
+}
+
+// Configure sidebar/navigation visibility based on admin role
+function configureNavigationForRole(role) {
+    const adminsNavItem = document.getElementById('adminsNavItem');
+    if (adminsNavItem) {
+        adminsNavItem.style.display = role === 'super_admin' ? 'block' : 'none';
+    }
+
+    const hideForCustomerService = ['revenue', 'withdrawals', 'payment-methods'];
+    const hideForFinance = ['subscribers', 'notifications', 'feedback', 'support'];
+
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const page = item.getAttribute('data-page');
+        if (role === 'customer_service' && hideForCustomerService.includes(page)) {
+            item.style.display = 'none';
+        } else if (role === 'finance' && hideForFinance.includes(page)) {
+            item.style.display = 'none';
+        }
     });
 }
 
@@ -154,6 +170,20 @@ function setupProfileDropdown() {
 
 // Load page content
 function loadPage(page) {
+    // Enforce role-based access control for pages
+    const role = window.currentAdminRole || (function() {
+        try {
+            const info = api.getAdminInfo();
+            return info?.role;
+        } catch {
+            return undefined;
+        }
+    })();
+
+    if (role && !isPageAllowedForRole(page, role)) {
+        alert('You do not have access to this section.');
+        page = 'dashboard';
+    }
     // Hide all pages
     document.querySelectorAll('.page-content').forEach(p => {
         p.style.display = 'none';
@@ -235,6 +265,27 @@ function loadPage(page) {
             loadSubscribers();
             break;
     }
+}
+
+// Check if a page is allowed for a given admin role
+function isPageAllowedForRole(page, role) {
+    if (role === 'super_admin') {
+        return true;
+    }
+
+    // Restrictions should mirror configureNavigationForRole
+    const restrictedForCustomerService = new Set(['revenue', 'withdrawals', 'payment-methods', 'admins']);
+    const restrictedForFinance = new Set(['subscribers', 'notifications', 'feedback', 'support', 'admins']);
+
+    if (role === 'customer_service') {
+        return !restrictedForCustomerService.has(page);
+    }
+    if (role === 'finance') {
+        return !restrictedForFinance.has(page);
+    }
+
+    // Fallback: unknown roles get default access (same as current behavior)
+    return true;
 }
 
 // Back to hosts list
@@ -3135,7 +3186,7 @@ function showCreateAdminForm() {
     document.getElementById('adminPasswordFields').style.display = 'block';
     document.getElementById('adminPassword').required = true;
     document.getElementById('adminPasswordConfirm').required = true;
-    document.getElementById('adminRole').value = 'admin';
+    document.getElementById('adminRole').value = 'customer_service';
     document.getElementById('adminIsActive').checked = true;
     document.getElementById('adminFormError').textContent = '';
     document.getElementById('adminModal').style.display = 'flex';
@@ -3152,7 +3203,7 @@ async function showEditAdminForm(adminId) {
         document.getElementById('adminPasswordFields').style.display = 'none';
         document.getElementById('adminPassword').required = false;
         document.getElementById('adminPasswordConfirm').required = false;
-        document.getElementById('adminRole').value = admin.role || 'admin';
+        document.getElementById('adminRole').value = admin.role || 'customer_service';
         document.getElementById('adminIsActive').checked = admin.is_active;
         document.getElementById('adminFormError').textContent = '';
         document.getElementById('adminModal').style.display = 'flex';
