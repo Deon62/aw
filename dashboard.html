@@ -9,9 +9,10 @@
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 </head>
 <body>
-    <div class="dashboard-layout">
+    <div class="dashboard-layout" id="dashboardLayout">
+        <div class="sidebar-backdrop" id="sidebarBackdrop" aria-hidden="true"></div>
         <!-- Sidebar -->
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Admin Panel</h2>
             </div>
@@ -37,7 +38,14 @@
         <main class="main-content">
             <!-- Header -->
             <header class="header">
-                <h1 id="pageTitle">Dashboard</h1>
+                <div class="header-main">
+                    <button type="button" class="mobile-nav-toggle" id="mobileNavToggle" aria-label="Open menu" aria-expanded="false" aria-controls="sidebar">
+                        <span class="mobile-nav-toggle-bar" aria-hidden="true"></span>
+                        <span class="mobile-nav-toggle-bar" aria-hidden="true"></span>
+                        <span class="mobile-nav-toggle-bar" aria-hidden="true"></span>
+                    </button>
+                    <h1 id="pageTitle">Dashboard</h1>
+                </div>
                 <div class="profile-dropdown">
                     <button class="profile-button" id="profileButton">
                         <div class="profile-info">

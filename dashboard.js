@@ -11,6 +11,8 @@ window.addEventListener('DOMContentLoaded', async () => {
     
     // Setup navigation
     setupNavigation();
+
+    setupMobileNav();
     
     // Setup profile dropdown
     setupProfileDropdown();
@@ -81,6 +83,61 @@ async function loadAdminInfo() {
     profileAvatar.textContent = '?';
 }
 
+// Mobile sidebar (off-canvas below --admin-mobile-breakpoint)
+function setupMobileNav() {
+    const layout = document.getElementById('dashboardLayout');
+    const toggle = document.getElementById('mobileNavToggle');
+    const backdrop = document.getElementById('sidebarBackdrop');
+    if (!layout || !toggle || !backdrop) {
+        return;
+    }
+
+    function closeNav() {
+        layout.classList.remove('sidebar-open');
+        toggle.setAttribute('aria-expanded', 'false');
+        toggle.setAttribute('aria-label', 'Open menu');
+        document.body.classList.remove('admin-nav-open');
+        backdrop.setAttribute('aria-hidden', 'true');
+    }
+
+    function openNav() {
+        layout.classList.add('sidebar-open');
+        toggle.setAttribute('aria-expanded', 'true');
+        toggle.setAttribute('aria-label', 'Close menu');
+        document.body.classList.add('admin-nav-open');
+        backdrop.setAttribute('aria-hidden', 'false');
+    }
+
+    function toggleNav() {
+        if (layout.classList.contains('sidebar-open')) {
+            closeNav();
+        } else {
+            openNav();
+        }
+    }
+
+    toggle.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleNav();
+    });
+
+    backdrop.addEventListener('click', () => closeNav());
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape' && layout.classList.contains('sidebar-open')) {
+            closeNav();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 900) {
+            closeNav();
+        }
+    });
+
+    window.closeAdminMobileNav = closeNav;
+}
+
 // Setup navigation
 function setupNavigation() {
     const navItems = document.querySelectorAll('.nav-item');
@@ -95,6 +152,9 @@ function setupNavigation() {
             
             // Load page
             loadPage(page);
+            if (typeof window.closeAdminMobileNav === 'function') {
+                window.closeAdminMobileNav();
+            }
         });
     });
 }
@@ -1026,7 +1086,7 @@ async function viewHostDetails(hostId) {
         hostDetailTitle.textContent = host.full_name || 'Host Details';
         
         hostDetailContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Basic Information</h3>
                     <div class="detail-row">
@@ -1241,7 +1301,7 @@ async function viewClientDetails(clientId) {
         hostDetailTitle.textContent = client.full_name || 'Client Details';
         
         hostDetailContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Basic Information</h3>
                     <div class="detail-row">
@@ -1647,7 +1707,7 @@ async function viewCarDetails(carId) {
         carDetailContent.innerHTML = `
             <div id="carMediaContainer">${renderCarMediaLoadingHtml()}</div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Basic Information</h3>
                     <div class="detail-row">
@@ -1699,7 +1759,7 @@ async function viewCarDetails(carId) {
                 </div>
             </div>
             
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Specifications</h3>
                     <div class="detail-row">
@@ -3466,7 +3526,7 @@ async function viewAdminDetails(adminId) {
         adminDetailTitle.textContent = admin.full_name || 'Admin Details';
         
         adminDetailContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Basic Information</h3>
                     <div class="detail-row">
@@ -4038,7 +4098,7 @@ async function viewPaymentMethodDetails(paymentMethodId) {
         paymentMethodDetailTitle.textContent = pm.name || 'Payment Method Details';
         
         paymentMethodDetailContent.innerHTML = `
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+            <div class="responsive-detail-grid">
                 <div class="host-detail-section">
                     <h3>Payment Method Information</h3>
                     <div class="detail-row">
