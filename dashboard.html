@@ -25,6 +25,7 @@
                 <a href="#" class="nav-item" data-page="payment-methods">Payment Methods</a>
                 <a href="#" class="nav-item" data-page="bookings">Bookings</a>
                 <a href="#" class="nav-item" data-page="withdrawals">Withdrawals</a>
+                <a href="#" class="nav-item" data-page="refunds">Refunds</a>
                 <a href="#" class="nav-item" data-page="subscribers">Subscribers</a>
                 <a href="#" class="nav-item" data-page="revenue">Revenue</a>
                 <a href="#" class="nav-item" data-page="support">Support</a>
@@ -220,6 +221,14 @@
                                         <textarea id="clientNotificationMessage" name="message" required maxlength="1000" rows="5" placeholder="Enter notification message"></textarea>
                                     </div>
                                     <div class="form-group">
+                                        <label for="clientNotificationEmailSubject">Email subject (optional)</label>
+                                        <input type="text" id="clientNotificationEmailSubject" name="email_subject" maxlength="255" placeholder="Defaults to the title above">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="clientNotificationEmailBody">Email body (HTML, optional)</label>
+                                        <textarea id="clientNotificationEmailBody" name="email_body_html" rows="4" placeholder="If empty, a simple HTML wrapper around the message is used."></textarea>
+                                    </div>
+                                    <div class="form-group">
                                         <label for="clientNotificationType">Type</label>
                                         <select id="clientNotificationType" name="type">
                                             <option value="info">Info</option>
@@ -389,6 +398,30 @@
                             <div class="loading">Loading withdrawals...</div>
                         </div>
                         <div id="withdrawalsPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+                    </div>
+                </div>
+
+                <div id="refundsPage" class="page-content" style="display: none;">
+                    <div class="content-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="margin: 0;">Refunds</h2>
+                            <div style="display: flex; gap: 10px;">
+                                <select id="refundStatusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                                    <option value="">All Status</option>
+                                    <option value="pending">Pending</option>
+                                    <option value="processing">Processing</option>
+                                    <option value="completed">Completed</option>
+                                    <option value="failed">Failed</option>
+                                    <option value="cancelled">Cancelled</option>
+                                </select>
+                                <input type="text" id="refundBookingCodeFilter" placeholder="Booking code (BK‑…)" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 200px;">
+                                <input type="text" id="refundClientEmailFilter" placeholder="Client email" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 220px;">
+                            </div>
+                        </div>
+                        <div id="refundsContent">
+                            <div class="loading">Loading refunds...</div>
+                        </div>
+                        <div id="refundsPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
                     </div>
                 </div>
 

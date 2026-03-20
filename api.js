@@ -134,6 +134,7 @@ const api = {
         return apiRequest(`/admin/cars${queryString ? '?' + queryString : ''}`);
     },
     getCar: (id) => apiRequest(`/admin/cars/${id}`),
+    getCarMedia: (id) => apiRequest(`/admin/cars/${id}/media`),
     approveCar: (id) => apiRequest(`/admin/cars/${id}/approve`, { method: 'PUT' }),
     rejectCar: (id, rejectionReason) => apiRequest(`/admin/cars/${id}/reject`, { 
         method: 'PUT', 
@@ -164,10 +165,15 @@ const api = {
         method: 'POST', 
         body: JSON.stringify(data)
     }),
-    broadcastToClients: (data) => apiRequest('/admin/notifications/broadcast-clients', { 
-        method: 'POST', 
+    broadcastToClients: (data) => apiRequest('/admin/notifications/broadcast-clients', {
+        method: 'POST',
         body: JSON.stringify(data)
     }),
+    broadcastToClientsByPreferences: (data) =>
+        apiRequest('/admin/notifications/broadcast-clients-preferences', {
+            method: 'POST',
+            body: JSON.stringify(data),
+        }),
     sendToUser: (data) => apiRequest('/admin/notifications/send', { 
         method: 'POST', 
         body: JSON.stringify(data)
@@ -250,6 +256,21 @@ const api = {
     confirmBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}/confirm`, { method: 'POST' }),
     deleteBooking: (bookingId) => apiRequest(`/admin/bookings/${bookingId}`, { method: 'DELETE' }),
     getBookingStats: () => apiRequest('/admin/bookings/stats'),
+
+    // Refunds
+    getRefunds: (params = {}) => {
+        const queryString = new URLSearchParams(params).toString();
+        return apiRequest(`/admin/refunds${queryString ? '?' + queryString : ''}`);
+    },
+    getRefund: (id) => apiRequest(`/admin/refunds/${id}`),
+    createRefund: (data) => apiRequest('/admin/refunds', {
+        method: 'POST',
+        body: JSON.stringify(data)
+    }),
+    updateRefund: (id, data) => apiRequest(`/admin/refunds/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify(data)
+    }),
 
     // Withdrawals
     getWithdrawals: (params = {}) => {

@@ -106,7 +106,7 @@ function configureNavigationForRole(role) {
         adminsNavItem.style.display = role === 'super_admin' ? 'block' : 'none';
     }
 
-    const hideForCustomerService = ['revenue', 'withdrawals', 'payment-methods'];
+    const hideForCustomerService = ['revenue', 'withdrawals', 'payment-methods', 'refunds'];
     const hideForFinance = ['subscribers', 'notifications', 'feedback', 'support'];
 
     document.querySelectorAll('.nav-item').forEach(item => {
@@ -261,6 +261,10 @@ function loadPage(page) {
             setupWithdrawalFilters();
             loadWithdrawals();
             break;
+        case 'refunds':
+            setupRefundFilters();
+            loadRefunds();
+            break;
         case 'subscribers':
             loadSubscribers();
             break;
@@ -274,7 +278,7 @@ function isPageAllowedForRole(page, role) {
     }
 
     // Restrictions should mirror configureNavigationForRole
-    const restrictedForCustomerService = new Set(['revenue', 'withdrawals', 'payment-methods', 'admins']);
+    const restrictedForCustomerService = new Set(['revenue', 'withdrawals', 'payment-methods', 'refunds', 'admins']);
     const restrictedForFinance = new Set(['subscribers', 'notifications', 'feedback', 'support', 'admins']);
 
     if (role === 'customer_service') {
@@ -1375,6 +1379,153 @@ let currentCarSearch = '';
 let currentCarStatusFilter = '';
 let carSearchTimeout = null;
 
+/** Escape for use inside HTML attribute values */
+function escapeHtmlAttr(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;')
+        .replace(/</g, '&lt;');
+}
+
+/** Escape for plain text / element text content */
+function escapeHtmlText(value) {
+    return String(value)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+/**
+ * Normalize car media API payload — backend may use snake_case or camelCase;
+ * image_urls might be an array, a single string, or a JSON string.
+ */
+function normalizeCarImageUrls(mediaData) {
+    if (!mediaData || typeof mediaData !== 'object') return [];
+    const raw =
+        mediaData.image_urls ??
+        mediaData.imageUrls ??
+        mediaData.urls ??
+        mediaData.images;
+    if (Array.isArray(raw)) {
+        return raw.filter((u) => typeof u === 'string' && u.trim());
+    }
+    if (typeof raw === 'string' && raw.trim()) {
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                return parsed.filter((u) => typeof u === 'string' && u.trim());
+            }
+        } catch (_) {
+            /* not JSON */
+        }
+        return [raw.trim()];
+    }
+    return [];
+}
+
+function normalizeCarVideoUrls(mediaData) {
+    if (!mediaData || typeof mediaData !== 'object') return [];
+    const raw = mediaData.video_urls ?? mediaData.videoUrls ?? mediaData.videos;
+    if (Array.isArray(raw)) {
+        return raw.filter((u) => typeof u === 'string' && u.trim());
+    }
+    if (typeof raw === 'string' && raw.trim()) {
+        return [raw.trim()];
+    }
+    return [];
+}
+
+function buildCarMediaLists(mediaData) {
+    let images = normalizeCarImageUrls(mediaData);
+    const videos = normalizeCarVideoUrls(mediaData);
+    const cover =
+        mediaData.cover_image_url ??
+        mediaData.coverImageUrl ??
+        null;
+    if (cover && typeof cover === 'string' && cover.trim()) {
+        const c = cover.trim();
+        if (!images.includes(c)) {
+            images = [c, ...images];
+        }
+    }
+    // Dedupe while preserving order
+    images = [...new Set(images)];
+    return { images, videos };
+}
+
+function renderCarMediaLoadingHtml() {
+    return `
+        <div class="host-detail-section car-media-section">
+            <h3>Car Media <span class="car-media-count">(loading...)</span></h3>
+            <div class="car-media-grid">
+                <div class="car-media-skeleton"></div>
+                <div class="car-media-skeleton"></div>
+                <div class="car-media-skeleton"></div>
+                <div class="car-media-skeleton"></div>
+            </div>
+        </div>
+    `;
+}
+
+function renderCarMediaHtml(mediaData) {
+    const { images: mediaImages, videos: mediaVideos } = buildCarMediaLists(mediaData || {});
+    return `
+        <div class="host-detail-section car-media-section">
+            <h3>Car Media <span class="car-media-count">(${mediaImages.length} photo${mediaImages.length === 1 ? '' : 's'})</span></h3>
+            ${mediaImages.length > 0 ? `
+                <div class="car-media-grid" style="margin-bottom: ${mediaVideos.length > 0 ? '16px' : '0'};">
+                    ${mediaImages.map((url, index) => {
+                        const safe = escapeHtmlAttr(url);
+                        return `
+                        <a href="${safe}" target="_blank" rel="noopener noreferrer" title="Open image ${index + 1}">
+                            <img
+                                src="${safe}"
+                                alt="Car image ${index + 1}"
+                                class="car-media-thumb"
+                                style="width: 100%; height: 130px; object-fit: cover; border-radius: 8px; border: 1px solid #e5e7eb; background: #f5f5f5; display: block;"
+                                loading="lazy"
+                            />
+                        </a>`;
+                    }).join('')}
+                </div>
+            ` : '<div class="detail-value" style="color: #666;">No car images found.</div>'}
+            ${mediaVideos.length > 0 ? `
+                <div style="display: grid; gap: 12px;">
+                    ${mediaVideos.map((url, index) => {
+                        const safe = escapeHtmlAttr(url);
+                        return `
+                        <div>
+                            <div class="detail-label" style="margin-bottom: 6px;">Video ${index + 1}</div>
+                            <video controls preload="metadata" style="width: 100%; max-width: 520px; border-radius: 8px; border: 1px solid #e5e7eb;">
+                                <source src="${safe}" />
+                                Your browser does not support the video tag.
+                            </video>
+                        </div>`;
+                    }).join('')}
+                </div>
+            ` : ''}
+        </div>
+    `;
+}
+
+async function loadCarMediaSection(carId) {
+    const mediaContainer = document.getElementById('carMediaContainer');
+    if (!mediaContainer) return;
+    try {
+        const mediaData = await api.getCarMedia(carId);
+        mediaContainer.innerHTML = renderCarMediaHtml(mediaData);
+    } catch (error) {
+        console.warn('Unable to load car media from Supabase:', error);
+        mediaContainer.innerHTML = `
+            <div class="host-detail-section car-media-section">
+                <h3>Car Media</h3>
+                <div class="detail-value" style="color: #666;">Unable to load car media right now.</div>
+            </div>
+        `;
+    }
+}
+
 // Setup car search and filter
 function setupCarSearch() {
     const searchInput = document.getElementById('carSearch');
@@ -1494,6 +1645,8 @@ async function viewCarDetails(carId) {
         carDetailTitle.textContent = car.name || car.model || 'Car Details';
         
         carDetailContent.innerHTML = `
+            <div id="carMediaContainer">${renderCarMediaLoadingHtml()}</div>
+            
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
                 <div class="host-detail-section">
                     <h3>Basic Information</h3>
@@ -1670,6 +1823,8 @@ async function viewCarDetails(carId) {
                 <button class="btn btn-danger" onclick="deleteCarConfirm(${car.id}, '${car.name || car.model || 'Car'}', true)">Delete Car</button>
             </div>
         `;
+
+        loadCarMediaSection(carId);
     } catch (error) {
         console.error('Error loading car details:', error);
         carDetailContent.innerHTML = `<div class="empty-state">Error loading car details: ${error.message}</div>`;
@@ -2096,6 +2251,189 @@ function openWithdrawalStatusModal(id, action) {
     if (notesEl) notesEl.value = '';
     if (errEl) errEl.textContent = '';
     modal.style.display = 'flex';
+}
+
+// ==================== REFUNDS MANAGEMENT ====================
+
+let currentRefundPage = 1;
+let currentRefundStatus = '';
+let currentRefundBookingCode = '';
+let currentRefundClientEmail = '';
+
+function setupRefundFilters() {
+    const statusFilter = document.getElementById('refundStatusFilter');
+    const bookingCodeFilter = document.getElementById('refundBookingCodeFilter');
+    const clientEmailFilter = document.getElementById('refundClientEmailFilter');
+
+    if (statusFilter) {
+        statusFilter.onchange = () => {
+            currentRefundStatus = statusFilter.value;
+            currentRefundPage = 1;
+            loadRefunds();
+        };
+    }
+
+    let timeout;
+    if (bookingCodeFilter) {
+        bookingCodeFilter.oninput = () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                currentRefundBookingCode = bookingCodeFilter.value.trim();
+                currentRefundPage = 1;
+                loadRefunds();
+            }, 400);
+        };
+    }
+    if (clientEmailFilter) {
+        clientEmailFilter.oninput = () => {
+            clearTimeout(timeout);
+            timeout = setTimeout(() => {
+                currentRefundClientEmail = clientEmailFilter.value.trim();
+                currentRefundPage = 1;
+                loadRefunds();
+            }, 400);
+        };
+    }
+}
+
+async function loadRefunds() {
+    const content = document.getElementById('refundsContent');
+    if (!content) return;
+    try {
+        content.innerHTML = '<div class="loading">Loading refunds...</div>';
+        const params = {
+            page: currentRefundPage,
+            limit: 20
+        };
+        if (currentRefundStatus) params.status = currentRefundStatus;
+        if (currentRefundBookingCode) params.booking_code = currentRefundBookingCode;
+        if (currentRefundClientEmail) params.client_email = currentRefundClientEmail;
+
+        const data = await api.getRefunds(params);
+        if (data.refunds && data.refunds.length > 0) {
+            content.innerHTML = `
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>Booking</th>
+                                <th>Client</th>
+                                <th>Original</th>
+                                <th>Refund</th>
+                                <th>%</th>
+                                <th>Status</th>
+                                <th>Reason</th>
+                                <th>Processed</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.refunds.map(r => {
+                                const statusClass =
+                                    r.status === 'completed'
+                                        ? 'active'
+                                        : (r.status === 'pending' || r.status === 'processing'
+                                            ? 'inactive'
+                                            : 'inactive');
+                                const pct = typeof r.percentage === 'number'
+                                    ? (r.percentage * 100).toFixed(1) + '%'
+                                    : '—';
+                                const canUpdate = r.status === 'pending' || r.status === 'processing';
+                                const actions = canUpdate
+                                    ? `
+                                        <button class="btn btn-small btn-primary" onclick="updateRefundStatus(${r.id}, 'completed')">Mark completed</button>
+                                        <button class="btn btn-small btn-secondary" onclick="updateRefundStatus(${r.id}, 'failed')">Mark failed</button>
+                                        <button class="btn btn-small" onclick="updateRefundStatus(${r.id}, 'cancelled')">Cancel</button>
+                                      `
+                                    : '—';
+                                return `
+                                    <tr>
+                                        <td>${r.id}</td>
+                                        <td>
+                                            ${r.booking_code || ('#' + r.booking_id)}
+                                            ${r.payment_id ? `<div style="font-size: 12px; color: #666;">Payment #${r.payment_id}</div>` : ''}
+                                        </td>
+                                        <td>
+                                            ${r.client_name || '-'}
+                                            ${r.client_email ? `<div style="font-size: 12px; color: #666;">${r.client_email}</div>` : ''}
+                                        </td>
+                                        <td>KES ${r.amount_original.toLocaleString()}</td>
+                                        <td>KES ${r.amount_refund.toLocaleString()}</td>
+                                        <td>${pct}</td>
+                                        <td><span class="status-badge ${statusClass}">${r.status}</span></td>
+                                        <td>
+                                            <div style="max-width: 260px; font-size: 12px;">
+                                                ${r.reason || '—'}
+                                                ${r.internal_note ? `<div style="color: #666;"><strong>Note:</strong> ${r.internal_note}</div>` : ''}
+                                            </div>
+                                        </td>
+                                        <td>
+                                            ${r.processed_at ? new Date(r.processed_at).toLocaleString() : '—'}
+                                            ${r.external_reference ? `<div style="font-size: 12px; color: #666;">Ref: ${r.external_reference}</div>` : ''}
+                                        </td>
+                                        <td>${actions}</td>
+                                    </tr>
+                                `;
+                            }).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+            renderRefundPagination(data.total, data.limit, data.page);
+        } else {
+            content.innerHTML = '<div class="empty-state">No refunds found</div>';
+            const pag = document.getElementById('refundsPagination');
+            if (pag) pag.innerHTML = '';
+        }
+    } catch (error) {
+        console.error('Error loading refunds:', error);
+        content.innerHTML = `<div class="empty-state">Error loading refunds: ${error.message}</div>`;
+    }
+}
+
+function renderRefundPagination(total, limit, page) {
+    const pagination = document.getElementById('refundsPagination');
+    if (!pagination) return;
+    const totalPages = Math.ceil(total / limit) || 1;
+    if (totalPages <= 1) {
+        pagination.innerHTML = '';
+        return;
+    }
+    let html = '';
+    if (page > 1) {
+        html += `<button class="btn btn-secondary" onclick="goToRefundPage(${page - 1})">Previous</button>`;
+    }
+    html += `<span style="padding: 0 15px;">Page ${page} of ${totalPages}</span>`;
+    if (page < totalPages) {
+        html += `<button class="btn btn-secondary" onclick="goToRefundPage(${page + 1})">Next</button>`;
+    }
+    pagination.innerHTML = html;
+}
+
+function goToRefundPage(page) {
+    currentRefundPage = page;
+    loadRefunds();
+}
+
+async function updateRefundStatus(id, newStatus) {
+    const reasonPrompt =
+        newStatus === 'completed'
+            ? 'Optional internal note (e.g. PSP reference, confirmation details):'
+            : 'Optional internal note for this status change:';
+    const note = window.prompt(reasonPrompt, '');
+    const ext = window.prompt('Optional PSP/Bank refund reference:', '');
+    try {
+        await api.updateRefund(id, {
+            status: newStatus,
+            internal_note: note || undefined,
+            external_reference: ext || undefined
+        });
+        await loadRefunds();
+    } catch (error) {
+        console.error('Error updating refund:', error);
+        alert('Failed to update refund: ' + (error.message || 'Unknown error'));
+    }
 }
 
 function closeWithdrawalStatusModal() {
@@ -2659,6 +2997,8 @@ async function sendClientNotification(event) {
     const title = document.getElementById('clientNotificationTitle').value.trim();
     const message = document.getElementById('clientNotificationMessage').value.trim();
     const type = document.getElementById('clientNotificationType').value;
+    const emailSubject = (document.getElementById('clientNotificationEmailSubject').value || '').trim();
+    const emailBodyHtml = (document.getElementById('clientNotificationEmailBody').value || '').trim();
     const recipientType = document.querySelector('input[name="clientRecipientType"]:checked').value;
     
     if (!title || !message) {
@@ -2675,7 +3015,10 @@ async function sendClientNotification(event) {
         const notificationData = {
             title: title,
             message: message,
-            type: type
+            type: type,
+            // Optional email fields for preferences-based broadcast
+            email_subject: emailSubject || undefined,
+            email_body_html: emailBodyHtml || undefined
         };
         
         console.log('Sending client notification:', notificationData);
@@ -2683,7 +3026,8 @@ async function sendClientNotification(event) {
         
         let response;
         if (recipientType === 'all') {
-            response = await api.broadcastToClients(notificationData);
+            // Use preferences-aware broadcast: respects each client's notification toggles
+            response = await api.broadcastToClientsByPreferences(notificationData);
             console.log('Notification response:', response);
         } else if (recipientType === 'specific') {
             const clientId = document.getElementById('notificationClientSelect').value;

@@ -551,6 +551,36 @@ textarea.form-input {
     border-bottom: 2px solid #eee;
 }
 
+.car-media-section .car-media-count {
+    font-weight: 400;
+    color: #666;
+    font-size: 15px;
+}
+
+.car-media-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+}
+
+.car-media-skeleton {
+    height: 130px;
+    border-radius: 8px;
+    border: 1px solid #e5e7eb;
+    background: linear-gradient(90deg, #f4f4f4 25%, #ececec 37%, #f4f4f4 63%);
+    background-size: 400% 100%;
+    animation: car-media-skeleton-shimmer 1.2s ease-in-out infinite;
+}
+
+@keyframes car-media-skeleton-shimmer {
+    0% {
+        background-position: 100% 0;
+    }
+    100% {
+        background-position: 0 0;
+    }
+}
+
 .detail-row {
     display: flex;
     margin-bottom: 16px;
