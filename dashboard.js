@@ -2391,11 +2391,9 @@ async function loadRefunds() {
                         <tbody>
                             ${data.refunds.map(r => {
                                 const statusClass =
-                                    r.status === 'completed'
-                                        ? 'active'
-                                        : (r.status === 'pending' || r.status === 'processing'
-                                            ? 'inactive'
-                                            : 'inactive');
+                                    r.status === 'completed' ? 'active'
+                                    : r.status === 'processing' ? 'pending'
+                                    : 'inactive';
                                 const pct = typeof r.percentage === 'number'
                                     ? (r.percentage * 100).toFixed(1) + '%'
                                     : '—';
@@ -2403,6 +2401,7 @@ async function loadRefunds() {
                                 const actions = canUpdate
                                     ? `
                                         <button class="btn btn-small btn-primary" onclick="updateRefundStatus(${r.id}, 'completed')">Mark completed</button>
+                                        ${r.status === 'pending' ? `<button class="btn btn-small btn-secondary" onclick="updateRefundStatus(${r.id}, 'processing')">Mark processing</button>` : ''}
                                         <button class="btn btn-small btn-secondary" onclick="updateRefundStatus(${r.id}, 'failed')">Mark failed</button>
                                         <button class="btn btn-small" onclick="updateRefundStatus(${r.id}, 'cancelled')">Cancel</button>
                                       `
