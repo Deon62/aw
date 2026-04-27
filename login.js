@@ -1,12 +1,4 @@
-// Same logic as api.js: use local backend when on localhost, 127.0.0.1, or file://
-function getApiBaseUrl() {
-    const override = localStorage.getItem('admin_api_base_url');
-    if (override) return override.replace(/\/$/, '').replace(/\/api\/v1$/, '') + '/api/v1';
-    const host = window.location.hostname;
-    const isLocal = host === 'localhost' || host === '127.0.0.1' || host === '' || window.location.protocol === 'file:';
-    return isLocal ? 'http://localhost:8001/api/v1' : 'https://api.ardena.xyz/api/v1';
-}
-const API_BASE_URL = getApiBaseUrl();
+const API_BASE_URL = 'https://api.ardena.xyz/api/v1';
 
 // Password visibility toggle
 document.getElementById('passwordToggle').addEventListener('click', () => {
