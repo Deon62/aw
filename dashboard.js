@@ -4222,39 +4222,73 @@ function escapeHtml(text) {
     return div.innerHTML;
 }
 
+function getInitials(name) {
+    if (!name) return '?';
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    return parts[0].substring(0, 2).toUpperCase();
+}
+
+function getAvatarColor(name) {
+    const palette = ['#6366f1','#8b5cf6','#ec4899','#f59e0b','#10b981','#0ea5e9','#ef4444','#14b8a6','#f97316','#a855f7'];
+    let hash = 0;
+    for (let i = 0; i < (name || '').length; i++) hash = (name.charCodeAt(i) + ((hash << 5) - hash)) | 0;
+    return palette[Math.abs(hash) % palette.length];
+}
+
+function formatRelativeTime(dateString) {
+    if (!dateString) return '';
+    try {
+        const diff = Date.now() - new Date(dateString).getTime();
+        const mins = Math.floor(diff / 60000);
+        if (mins < 1) return 'Just now';
+        if (mins < 60) return `${mins}m ago`;
+        const hrs = Math.floor(diff / 3600000);
+        if (hrs < 24) return `${hrs}h ago`;
+        const days = Math.floor(diff / 86400000);
+        if (days < 7) return `${days}d ago`;
+        return new Date(dateString).toLocaleDateString();
+    } catch (e) { return ''; }
+}
+
+function formatTimeShort(dateString) {
+    if (!dateString) return '';
+    try {
+        return new Date(dateString).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch (e) { return ''; }
+}
+
+function formatDateLabel(dateString) {
+    if (!dateString) return '';
+    try {
+        const d = new Date(dateString);
+        const today = new Date();
+        const yesterday = new Date(today); yesterday.setDate(today.getDate() - 1);
+        if (d.toDateString() === today.toDateString()) return 'Today';
+        if (d.toDateString() === yesterday.toDateString()) return 'Yesterday';
+        return d.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
+    } catch (e) { return ''; }
+}
+
 let currentSupportPage = 1;
 let currentSupportConversationId = null;
+let supportSearchInitialized = false;
 
-// Setup support search and filters
+// Setup support search and filters (guards against duplicate listeners)
 function setupSupportSearch() {
+    if (supportSearchInitialized) return;
+    supportSearchInitialized = true;
+
     const searchInput = document.getElementById('supportSearch');
     const statusFilter = document.getElementById('supportStatusFilter');
     const hostIdFilter = document.getElementById('supportHostIdFilter');
-    
+
     let searchTimeout;
-    
-    const performSearch = () => {
-        currentSupportPage = 1;
-        loadSupportConversations();
-    };
-    
-    if (searchInput) {
-        searchInput.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 500);
-        });
-    }
-    
-    if (statusFilter) {
-        statusFilter.addEventListener('change', performSearch);
-    }
-    
-    if (hostIdFilter) {
-        hostIdFilter.addEventListener('input', (e) => {
-            clearTimeout(searchTimeout);
-            searchTimeout = setTimeout(performSearch, 500);
-        });
-    }
+    const performSearch = () => { currentSupportPage = 1; loadSupportConversations(); };
+
+    if (searchInput) searchInput.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(performSearch, 400); });
+    if (statusFilter) statusFilter.addEventListener('change', performSearch);
+    if (hostIdFilter) hostIdFilter.addEventListener('input', () => { clearTimeout(searchTimeout); searchTimeout = setTimeout(performSearch, 400); });
 }
 
 // Load support conversations
@@ -4282,61 +4316,61 @@ async function loadSupportConversations() {
         
         const response = await api.getSupportConversations(params);
         
-        // Update unread count
+        // Update unread count pill
         if (unreadCountEl) {
             if (response.unread_count > 0) {
                 unreadCountEl.textContent = `${response.unread_count} unread`;
-                unreadCountEl.style.display = 'inline';
+                unreadCountEl.style.display = 'inline-block';
             } else {
-                unreadCountEl.textContent = '';
                 unreadCountEl.style.display = 'none';
             }
         }
-        
+
         if (!response.conversations || response.conversations.length === 0) {
             content.innerHTML = '<div class="empty-state">No conversations found</div>';
             document.getElementById('supportPagination').innerHTML = '';
             return;
         }
-        
-        let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
-        
+
+        let html = '<div class="support-conv-list">';
+
         response.conversations.forEach(conv => {
-            const lastMessage = conv.messages && conv.messages.length > 0 
-                ? conv.messages[conv.messages.length - 1] 
+            const lastMessage = conv.messages && conv.messages.length > 0
+                ? conv.messages[conv.messages.length - 1]
                 : null;
-            const unreadBadge = !conv.is_read_by_admin ? '<span style="background: #e74c3c; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Unread</span>' : '';
-            const statusBadge = conv.status === 'closed' 
-                ? '<span style="background: #95a5a6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Closed</span>'
-                : '<span style="background: #27ae60; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; margin-left: 8px;">Open</span>';
-            
+            const hostName = conv.host_name || 'Unknown Host';
+            const initials = getInitials(hostName);
+            const avatarColor = getAvatarColor(hostName);
+            const isUnread = !conv.is_read_by_admin;
+
+            const statusBadge = conv.status === 'closed'
+                ? '<span class="badge-status-closed">Closed</span>'
+                : '<span class="badge-status-open">Open</span>';
+            const unreadBadge = isUnread ? '<span class="badge-unread">New</span>' : '';
+
+            let previewHtml = '<span style="font-style:italic;color:#b0b8c9;">No messages yet</span>';
+            if (lastMessage) {
+                const sender = lastMessage.sender_type === 'host' ? 'Host' : 'You';
+                const preview = escapeHtml(lastMessage.message.substring(0, 85));
+                previewHtml = `<strong>${sender}:</strong> ${preview}${lastMessage.message.length > 85 ? '…' : ''}`;
+            }
+
             html += `
-                <div onclick="viewSupportConversation(${conv.id})" style="padding: 16px; border: 1px solid #ddd; border-radius: 8px; cursor: pointer; background: ${!conv.is_read_by_admin ? '#fff5f5' : '#fff'}; transition: all 0.2s;" 
-                     onmouseover="this.style.borderColor='#3498db'; this.style.boxShadow='0 2px 4px rgba(0,0,0,0.1)'" 
-                     onmouseout="this.style.borderColor='#ddd'; this.style.boxShadow='none'">
-                    <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 8px;">
-                        <div>
-                            <strong style="font-size: 16px;">${escapeHtml(conv.host_name || 'Unknown Host')}</strong>
-                            ${unreadBadge}
-                            ${statusBadge}
+                <div onclick="viewSupportConversation(${conv.id})" class="support-conv-card${isUnread ? ' unread' : ''}">
+                    <div class="support-conv-avatar" style="background:${avatarColor};">${escapeHtml(initials)}</div>
+                    <div class="support-conv-body">
+                        <div class="support-conv-top">
+                            <span class="support-conv-name">${escapeHtml(hostName)}</span>
+                            <span class="support-conv-time">${formatRelativeTime(lastMessage ? lastMessage.created_at : conv.created_at)}</span>
                         </div>
-                        <div style="font-size: 12px; color: #666;">
-                            ${lastMessage ? formatDateTime(lastMessage.created_at) : formatDateTime(conv.created_at)}
-                        </div>
+                        <div class="support-conv-email">${escapeHtml(conv.host_email || '')}</div>
+                        <div class="support-conv-preview">${previewHtml}</div>
                     </div>
-                    <div style="font-size: 14px; color: #555; margin-bottom: 4px;">
-                        ${escapeHtml(conv.host_email || '')}
-                    </div>
-                    ${lastMessage ? `
-                        <div style="font-size: 13px; color: #777; margin-top: 8px; padding-top: 8px; border-top: 1px solid #eee;">
-                            <strong>${lastMessage.sender_type === 'host' ? 'Host' : 'Admin'}:</strong> 
-                            ${escapeHtml(lastMessage.message.substring(0, 100))}${lastMessage.message.length > 100 ? '...' : ''}
-                        </div>
-                    ` : '<div style="font-size: 13px; color: #999; font-style: italic;">No messages yet</div>'}
+                    <div class="support-conv-badges">${statusBadge}${unreadBadge}</div>
                 </div>
             `;
         });
-        
+
         html += '</div>';
         content.innerHTML = html;
         
@@ -4358,16 +4392,9 @@ function renderSupportPagination(response) {
     }
     
     let html = '';
-    
-    // Previous button
-    html += `<button class="btn btn-secondary" ${currentSupportPage === 1 ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage - 1})" style="padding: 8px 16px;">Previous</button>`;
-    
-    // Page info
-    html += `<span style="padding: 0 16px;">Page ${currentSupportPage} of ${response.total_pages} (${response.total} total)</span>`;
-    
-    // Next button
-    html += `<button class="btn btn-secondary" ${currentSupportPage >= response.total_pages ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage + 1})" style="padding: 8px 16px;">Next</button>`;
-    
+    html += `<button class="btn btn-secondary" ${currentSupportPage === 1 ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage - 1})">← Previous</button>`;
+    html += `<span class="support-page-info">Page ${currentSupportPage} of ${response.total_pages} &nbsp;·&nbsp; ${response.total} total</span>`;
+    html += `<button class="btn btn-secondary" ${currentSupportPage >= response.total_pages ? 'disabled' : ''} onclick="changeSupportPage(${currentSupportPage + 1})">Next →</button>`;
     paginationEl.innerHTML = html;
 }
 
@@ -4395,75 +4422,90 @@ async function viewSupportConversation(conversationId) {
     
     try {
         const conversation = await api.getSupportConversation(conversationId);
-        
-        // Render conversation info
-        const statusBadge = conversation.status === 'closed' 
-            ? '<span style="background: #95a5a6; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px;">Closed</span>'
-            : '<span style="background: #27ae60; color: white; padding: 4px 12px; border-radius: 16px; font-size: 12px;">Open</span>';
-        
+
+        // Render header info
+        const hostName = conversation.host_name || 'Unknown Host';
+        const initials = getInitials(hostName);
+        const avatarColor = getAvatarColor(hostName);
+        const statusBadge = conversation.status === 'closed'
+            ? '<span class="badge-status-closed">Closed</span>'
+            : '<span class="badge-status-open">Open</span>';
+
         infoEl.innerHTML = `
-            <div style="display: flex; justify-content: space-between; align-items: center;">
-                <div>
-                    <h3 style="margin: 0 0 8px 0;">${escapeHtml(conversation.host_name || 'Unknown Host')}</h3>
-                    <div style="color: #666; font-size: 14px;">${escapeHtml(conversation.host_email || '')}</div>
-                    <div style="color: #999; font-size: 12px; margin-top: 4px;">Host ID: ${conversation.host_id}</div>
-                </div>
-                <div>
+            <div class="support-chat-host-avatar" style="background:${avatarColor};">${escapeHtml(initials)}</div>
+            <div class="support-chat-host-details">
+                <div class="support-chat-host-name">${escapeHtml(hostName)}</div>
+                <div class="support-chat-host-sub">
+                    <span>${escapeHtml(conversation.host_email || '')}</span>
+                    <span class="dot">·</span>
+                    <span>ID: ${conversation.host_id}</span>
+                    <span class="dot">·</span>
                     ${statusBadge}
                 </div>
             </div>
         `;
-        
-        // Show/hide close/reopen buttons
+
+        // Show/hide close/reopen buttons and reply form
         const closeBtn = document.getElementById('closeConversationBtn');
         const reopenBtn = document.getElementById('reopenConversationBtn');
+        const existingBanner = document.getElementById('supportClosedBanner');
+        if (existingBanner) existingBanner.remove();
+
         if (conversation.status === 'open') {
-            closeBtn.style.display = 'block';
+            closeBtn.style.display = 'flex';
             reopenBtn.style.display = 'none';
             replyForm.style.display = 'block';
         } else {
             closeBtn.style.display = 'none';
-            reopenBtn.style.display = 'block';
+            reopenBtn.style.display = 'flex';
             replyForm.style.display = 'none';
+            const banner = document.createElement('div');
+            banner.id = 'supportClosedBanner';
+            banner.className = 'support-closed-banner';
+            banner.innerHTML = `
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18.36 6.64a9 9 0 1 1-12.73 0"/><line x1="12" y1="2" x2="12" y2="12"/></svg>
+                This conversation is closed.
+                <button class="support-closed-reopen-btn" onclick="reopenSupportConversation()">Reopen</button>
+            `;
+            replyForm.parentNode.insertBefore(banner, replyForm);
         }
-        
-        // Render messages
+
+        // Render messages with day dividers
         if (!conversation.messages || conversation.messages.length === 0) {
             messagesEl.innerHTML = '<div class="empty-state">No messages yet</div>';
         } else {
-            let messagesHtml = '<div style="display: flex; flex-direction: column; gap: 16px;">';
-            
+            let messagesHtml = '';
+            let lastDateLabel = '';
+
             conversation.messages.forEach(msg => {
                 const isHost = msg.sender_type === 'host';
-                const senderName = msg.sender_name || (isHost ? 'Host' : 'Admin');
-                
+                const senderName = escapeHtml(msg.sender_name || (isHost ? hostName : 'Admin'));
+                const msgInitials = isHost ? escapeHtml(initials) : 'A';
+                const msgAvatarColor = isHost ? avatarColor : '#3498db';
+                const dateLabel = formatDateLabel(msg.created_at);
+
+                if (dateLabel && dateLabel !== lastDateLabel) {
+                    lastDateLabel = dateLabel;
+                    messagesHtml += `<div class="support-day-divider">${escapeHtml(dateLabel)}</div>`;
+                }
+
                 messagesHtml += `
-                    <div style="display: flex; ${isHost ? 'justify-content: flex-start' : 'justify-content: flex-end'};">
-                        <div style="max-width: 70%; padding: 12px 16px; border-radius: 12px; background: ${isHost ? '#e8f4f8' : '#3498db'}; color: ${isHost ? '#333' : '#fff'};">
-                            <div style="font-weight: 600; font-size: 12px; margin-bottom: 4px; opacity: 0.9;">
-                                ${escapeHtml(senderName)}
-                            </div>
-                            <div style="font-size: 14px; line-height: 1.5;">
-                                ${escapeHtml(msg.message)}
-                            </div>
-                            <div style="font-size: 11px; margin-top: 8px; opacity: 0.7;">
-                                ${formatDateTime(msg.created_at)}
-                            </div>
+                    <div class="support-msg-row ${isHost ? 'host-row' : 'admin-row'}">
+                        ${isHost ? `<div class="support-msg-avatar-sm" style="background:${msgAvatarColor};">${msgInitials}</div>` : ''}
+                        <div class="support-msg-bubble-wrap">
+                            <div class="support-msg-sender">${senderName}</div>
+                            <div class="support-msg-bubble ${isHost ? 'host-bubble' : 'admin-bubble'}">${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
+                            <div class="support-msg-time">${formatDateTime(msg.created_at)}</div>
                         </div>
+                        ${!isHost ? `<div class="support-msg-avatar-sm" style="background:#3498db;">A</div>` : ''}
                     </div>
                 `;
             });
-            
-            messagesHtml += '</div>';
+
             messagesEl.innerHTML = messagesHtml;
-            
-            // Scroll to bottom
-            messagesEl.scrollTop = messagesEl.scrollHeight;
+            requestAnimationFrame(() => { messagesEl.scrollTop = messagesEl.scrollHeight; });
         }
-        
-        // Reload conversations list to update unread count
-        loadSupportConversations();
-        
+
     } catch (error) {
         console.error('Error loading conversation:', error);
         infoEl.innerHTML = `<div class="error">Error loading conversation: ${error.message}</div>`;
@@ -4515,23 +4557,22 @@ async function sendSupportReply(event) {
     // Disable form while sending
     const form = event.target;
     const submitBtn = form.querySelector('button[type="submit"]');
-    const originalBtnText = submitBtn.textContent;
     submitBtn.disabled = true;
-    submitBtn.textContent = 'Sending...';
-    
+    submitBtn.style.opacity = '0.5';
+
     try {
         await api.respondToSupportConversation(currentSupportConversationId, message);
         messageInput.value = '';
         messageInput.style.height = 'auto';
-        
+
         // Reload conversation to show new message
         await viewSupportConversation(currentSupportConversationId);
-        
+
     } catch (error) {
         alert('Error sending reply: ' + error.message);
     } finally {
         submitBtn.disabled = false;
-        submitBtn.textContent = originalBtnText;
+        submitBtn.style.opacity = '';
     }
 }
 

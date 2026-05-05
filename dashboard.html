@@ -521,51 +521,62 @@
                 </div>
 
                 <div id="supportPage" class="page-content" style="display: none;">
-                    <div class="content-section">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h2 style="margin: 0;">Support Conversations</h2>
-                            <div style="display: flex; gap: 10px; align-items: center;">
-                                <span id="unreadCount" style="font-weight: 600; color: #e74c3c; font-size: 14px;"></span>
-                                <select id="supportStatusFilter" style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                    <div class="support-list-container">
+                        <div class="support-list-header">
+                            <div class="support-list-header-left">
+                                <h2 class="support-list-title">Support Inbox</h2>
+                                <span id="unreadCount" class="support-unread-pill" style="display:none;"></span>
+                            </div>
+                            <div class="support-list-filters">
+                                <select id="supportStatusFilter" class="support-filter-select">
                                     <option value="">All Status</option>
                                     <option value="open">Open</option>
                                     <option value="closed">Closed</option>
                                 </select>
-                                <input type="number" id="supportHostIdFilter" placeholder="Host ID..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 120px;">
-                                <input type="text" id="supportSearch" placeholder="Search by host name or email..." style="padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; width: 300px;">
+                                <input type="number" id="supportHostIdFilter" placeholder="Host ID" class="support-filter-input">
+                                <div class="support-search-box">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+                                    <input type="text" id="supportSearch" placeholder="Search conversations..." class="support-search-input">
+                                </div>
                             </div>
                         </div>
                         <div id="supportContent">
                             <div class="loading">Loading conversations...</div>
                         </div>
-                        <div id="supportPagination" style="margin-top: 20px; display: flex; justify-content: center; gap: 10px; align-items: center;"></div>
+                        <div id="supportPagination" class="support-pagination-bar"></div>
                     </div>
                 </div>
 
                 <div id="supportDetailPage" class="page-content" style="display: none; padding: 0;">
-                    <div style="display: flex; flex-direction: column; height: calc(100vh - 100px); background: #f0f2f5;">
-                        <!-- Header -->
-                        <div id="supportChatHeader" style="background: #fff; padding: 12px 20px; border-bottom: 1px solid #e4e6eb; display: flex; align-items: center; gap: 12px;">
-                            <button onclick="backToSupportList()" style="background: none; border: none; font-size: 20px; cursor: pointer; color: #65676b; padding: 4px 8px;">←</button>
-                            <div id="supportConversationInfo" style="flex: 1; display: flex; align-items: center; gap: 12px;">
+                    <div class="support-chat-wrapper">
+                        <div id="supportChatHeader" class="support-chat-header">
+                            <button onclick="backToSupportList()" class="support-back-btn">
+                                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 5l-7 7 7 7"/></svg>
+                                <span>Back</span>
+                            </button>
+                            <div id="supportConversationInfo" class="support-chat-host-info">
                                 <div class="loading">Loading...</div>
                             </div>
-                            <div id="supportChatActions" style="display: flex; gap: 8px;">
-                                <button id="closeConversationBtn" onclick="closeSupportConversation()" style="display: none; background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #65676b;">Close</button>
-                                <button id="reopenConversationBtn" onclick="reopenSupportConversation()" style="display: none; background: none; border: 1px solid #ddd; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-size: 13px; color: #65676b;">Reopen</button>
+                            <div id="supportChatActions" class="support-chat-actions">
+                                <button id="closeConversationBtn" onclick="closeSupportConversation()" class="support-action-btn danger-btn" style="display:none;">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                                    Close
+                                </button>
+                                <button id="reopenConversationBtn" onclick="reopenSupportConversation()" class="support-action-btn success-btn" style="display:none;">
+                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+                                    Reopen
+                                </button>
                             </div>
                         </div>
-                        
-                        <!-- Messages Area -->
-                        <div id="supportMessages" style="flex: 1; overflow-y: auto; padding: 20px; background: #f0f2f5;">
+                        <div id="supportMessages" class="support-messages-area">
                             <div class="loading">Loading messages...</div>
                         </div>
-                        
-                        <!-- Reply Form -->
-                        <div id="supportReplyForm" style="background: #fff; padding: 12px 20px; border-top: 1px solid #e4e6eb;">
-                            <form id="supportReplyFormElement" onsubmit="sendSupportReply(event)" style="display: flex; gap: 10px; align-items: flex-end;">
-                                <textarea id="supportReplyMessage" placeholder="Type a message..." required style="flex: 1; padding: 10px 14px; border: 1px solid #e4e6eb; border-radius: 20px; font-size: 15px; min-height: 40px; max-height: 120px; resize: none; font-family: inherit; outline: none;" rows="1"></textarea>
-                                <button type="submit" style="background: #3498db; color: white; border: none; padding: 10px 20px; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: 500;">Send</button>
+                        <div id="supportReplyForm" class="support-reply-area">
+                            <form id="supportReplyFormElement" onsubmit="sendSupportReply(event)" class="support-reply-form">
+                                <textarea id="supportReplyMessage" placeholder="Type your reply here..." required class="support-reply-textarea" rows="1"></textarea>
+                                <button type="submit" class="support-send-btn">
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg>
+                                </button>
                             </form>
                         </div>
                     </div>
