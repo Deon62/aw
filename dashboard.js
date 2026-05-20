@@ -368,38 +368,23 @@ let moneyFlowChart = null;
 let paidBookingsChart = null;
 let revenueCompositionChart = null;
 
-// ---------------------------------------------------------------------------
-// MOCK DATA — replace each function below with a real API call when ready.
-// Keep the return shapes identical so the chart code does not need to change.
-// ---------------------------------------------------------------------------
-
-// Verified hosts (KYC) — monthly cumulative + breakdown for the latest month.
-function mockVerifiedHostsData(stats) {
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const totalHosts = Math.max(stats.total_hosts || 0, 12);
-    const verified = [4, 7, 11, 16, 22, 29, 37, 46, 56, 67, 79, Math.round(totalHosts * 0.78)];
-    const pending  = [2, 3, 4,  5,  6,  6,  7,  8,  9,  10, 11, Math.round(totalHosts * 0.22)];
+// Normalize the kyc-trends response (an array of { date, verified, pending })
+// into the shape the KYC chart consumes.
+function normalizeKycSeries(rows) {
+    const safe = Array.isArray(rows) ? rows : [];
+    const labels = safe.map(r => {
+        const d = new Date(r.date);
+        return isNaN(d) ? r.date : d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+    });
+    const verified_series = safe.map(r => r.verified || 0);
+    const pending_series = safe.map(r => r.pending || 0);
+    const last = safe[safe.length - 1] || { verified: 0, pending: 0 };
     return {
         labels,
-        verified_series: verified,
-        pending_series: pending,
-        verified_now: verified[verified.length - 1],
-        total_now: verified[verified.length - 1] + pending[pending.length - 1],
-    };
-}
-
-// Verified clients (KYC) — same shape as hosts.
-function mockVerifiedClientsData(stats) {
-    const labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    const totalClients = Math.max(stats.total_clients || 0, 40);
-    const verified = [12, 19, 28, 41, 55, 72, 91, 114, 138, 164, 192, Math.round(totalClients * 0.71)];
-    const pending  = [6,  8,  11, 14, 18, 22, 27, 33,  39,  46,  53,  Math.round(totalClients * 0.29)];
-    return {
-        labels,
-        verified_series: verified,
-        pending_series: pending,
-        verified_now: verified[verified.length - 1],
-        total_now: verified[verified.length - 1] + pending[pending.length - 1],
+        verified_series,
+        pending_series,
+        verified_now: last.verified || 0,
+        pending_now: last.pending || 0,
     };
 }
 
@@ -408,7 +393,13 @@ async function loadDashboard() {
     const statsGrid = document.getElementById('statsGrid');
 
     try {
-        const stats = await api.getDashboardStats();
+        const [stats, kyc] = await Promise.all([
+            api.getDashboardStats(),
+            api.getKycTrends().catch(err => {
+                console.error('Failed to load KYC trends:', err);
+                return { hosts: [], clients: [] };
+            }),
+        ]);
 
         statsGrid.innerHTML = `
             <div class="stat-card">
@@ -433,8 +424,8 @@ async function loadDashboard() {
             </div>
         `;
 
-        createVerifiedHostsChart(mockVerifiedHostsData(stats));
-        createVerifiedClientsChart(mockVerifiedClientsData(stats));
+        createVerifiedHostsChart(normalizeKycSeries(kyc.hosts));
+        createVerifiedClientsChart(normalizeKycSeries(kyc.clients));
         createVerificationStatusChart(stats);
     } catch (error) {
         console.error('Error loading dashboard:', error);
@@ -552,8 +543,7 @@ function createVerifiedHostsChart(data) {
 
     const subtitle = document.getElementById('verifiedHostsSubtitle');
     if (subtitle) {
-        const pct = data.total_now > 0 ? Math.round((data.verified_now / data.total_now) * 100) : 0;
-        subtitle.textContent = `${data.verified_now.toLocaleString()} verified · ${pct}% of hosts`;
+        subtitle.textContent = `${data.verified_now.toLocaleString()} verified · ${data.pending_now.toLocaleString()} pending`;
     }
 }
 
@@ -573,8 +563,7 @@ function createVerifiedClientsChart(data) {
 
     const subtitle = document.getElementById('verifiedClientsSubtitle');
     if (subtitle) {
-        const pct = data.total_now > 0 ? Math.round((data.verified_now / data.total_now) * 100) : 0;
-        subtitle.textContent = `${data.verified_now.toLocaleString()} verified · ${pct}% of clients`;
+        subtitle.textContent = `${data.verified_now.toLocaleString()} verified · ${data.pending_now.toLocaleString()} pending`;
     }
 }
 
