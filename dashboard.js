@@ -4601,7 +4601,7 @@ async function viewSupportConversation(conversationId) {
                 const isHost = msg.sender_type === 'host';
                 const senderName = escapeHtml(msg.sender_name || (isHost ? hostName : 'Admin'));
                 const msgInitials = isHost ? escapeHtml(initials) : 'A';
-                const msgAvatarColor = isHost ? avatarColor : '#3498db';
+                const msgAvatarColor = isHost ? avatarColor : '#007ffa';
                 const dateLabel = formatDateLabel(msg.created_at);
 
                 if (dateLabel && dateLabel !== lastDateLabel) {
@@ -4617,7 +4617,7 @@ async function viewSupportConversation(conversationId) {
                             <div class="support-msg-bubble ${isHost ? 'host-bubble' : 'admin-bubble'}">${escapeHtml(msg.message).replace(/\n/g, '<br>')}</div>
                             <div class="support-msg-time">${formatDateTime(msg.created_at)}</div>
                         </div>
-                        ${!isHost ? `<div class="support-msg-avatar-sm" style="background:#3498db;">A</div>` : ''}
+                        ${!isHost ? `<div class="support-msg-avatar-sm" style="background:#007ffa;">A</div>` : ''}
                     </div>
                 `;
             });

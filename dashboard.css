@@ -1187,7 +1187,7 @@ body.admin-nav-open {
     background: #fff;
     transition: border-color 0.2s;
 }
-.support-search-box:focus-within { border-color: #3498db; }
+.support-search-box:focus-within { border-color: #007ffa; }
 .support-search-box svg { color: #9ca3af; flex-shrink: 0; }
 
 .support-search-input {
@@ -1217,7 +1217,7 @@ body.admin-nav-open {
     background-position: right 10px center;
     min-width: 0;
 }
-.support-filter-select:focus { border-color: #3498db; }
+.support-filter-select:focus { border-color: #007ffa; }
 
 .support-filter-input {
     flex: 1;
@@ -1231,7 +1231,7 @@ body.admin-nav-open {
     width: auto;
     transition: border-color 0.2s;
 }
-.support-filter-input:focus { border-color: #3498db; }
+.support-filter-input:focus { border-color: #007ffa; }
 
 /* Compact conversation rows (no huge cards) */
 .support-left-list {
@@ -1253,13 +1253,13 @@ body.admin-nav-open {
 .support-conv-row + .support-conv-row { margin-top: 2px; }
 .support-conv-row:hover { background: #f1f5f9; }
 .support-conv-row.active {
-    background: #eff6ff;
-    border-color: #bfdbfe;
+    background: rgba(0, 127, 250, 0.08);
+    border-color: rgba(0, 127, 250, 0.28);
 }
 .support-conv-row.unread { background: #fffbf0; }
 .support-conv-row.unread.active {
-    background: #eff6ff;
-    border-color: #bfdbfe;
+    background: rgba(0, 127, 250, 0.08);
+    border-color: rgba(0, 127, 250, 0.28);
 }
 .support-conv-row.unread .support-conv-name { color: #111827; }
 .support-conv-row.unread .support-conv-preview { color: #374151; font-weight: 500; }
@@ -1549,14 +1549,13 @@ body.admin-nav-open {
 .host-bubble {
     background: #fff;
     color: #1f2937;
+    border: 1px solid #eef2f7;
     border-bottom-left-radius: 5px;
-    box-shadow: 0 1px 5px rgba(0,0,0,0.07);
 }
 .admin-bubble {
-    background: linear-gradient(135deg, #3498db 0%, #2471a3 100%);
+    background: #007ffa;
     color: #fff;
     border-bottom-right-radius: 5px;
-    box-shadow: 0 3px 10px rgba(52,152,219,0.28);
 }
 
 .support-msg-time {
@@ -1601,7 +1600,7 @@ body.admin-nav-open {
 .support-closed-reopen-btn {
     background: none;
     border: none;
-    color: #3498db;
+    color: #007ffa;
     font-weight: 700;
     cursor: pointer;
     font-size: 14px;
@@ -1628,7 +1627,7 @@ body.admin-nav-open {
     transition: border-color 0.2s, background 0.2s;
 }
 .support-reply-form:focus-within {
-    border-color: #3498db;
+    border-color: #007ffa;
     background: #fff;
 }
 
@@ -1648,10 +1647,10 @@ body.admin-nav-open {
 .support-reply-textarea::placeholder { color: #b0b8c9; }
 
 .support-send-btn {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: linear-gradient(135deg, #3498db 0%, #2471a3 100%);
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: #007ffa;
     border: none;
     color: #fff;
     cursor: pointer;
@@ -1659,15 +1658,10 @@ body.admin-nav-open {
     align-items: center;
     justify-content: center;
     flex-shrink: 0;
-    transition: all 0.18s;
-    box-shadow: 0 2px 8px rgba(52,152,219,0.3);
+    transition: background 0.15s;
 }
-.support-send-btn:hover {
-    background: linear-gradient(135deg, #2980b9 0%, #1a5f8a 100%);
-    transform: scale(1.05);
-    box-shadow: 0 4px 14px rgba(52,152,219,0.4);
-}
-.support-send-btn:active { transform: scale(0.96); }
+.support-send-btn:hover { background: #0070dd; }
+.support-send-btn:active { background: #0066cc; }
 
 @media (max-width: 900px) {
     .support-inbox { grid-template-columns: 1fr; }
