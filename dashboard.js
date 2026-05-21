@@ -5009,139 +5009,6 @@ const contactsState = {
 
 let modDrawerContext = null;
 
-// ─── MOCK DATA (preview only) ────────────────────────────────────────────
-// Remove this block and uncomment the `await api.xxx(...)` lines below to
-// switch to the real backend.
-const MOCK_RATINGS = [
-    { id: 101, type: 'car', rating: 5, review: 'Smooth ride, very clean. Pickup was easy and the host was responsive throughout.', booking_id: 4421, created_at: '2026-05-19T09:14:00Z', author_type: 'client', author_id: 3, author_name: 'Jane Doe', subject_type: 'car', subject_id: 12, subject_name: 'Toyota Vitz 2018' },
-    { id: 102, type: 'host', rating: 4, review: 'Polite and on time. Could have communicated drop-off instructions earlier.', booking_id: 4421, created_at: '2026-05-18T17:02:00Z', author_type: 'client', author_id: 3, author_name: 'Jane Doe', subject_type: 'host', subject_id: 7, subject_name: 'Peter Mwangi' },
-    { id: 103, type: 'client', rating: 5, review: 'Returned the car spotless and on time. Great communication.', booking_id: 4418, created_at: '2026-05-17T12:30:00Z', author_type: 'host', author_id: 7, author_name: 'Peter Mwangi', subject_type: 'client', subject_id: 3, subject_name: 'Jane Doe' },
-    { id: 104, type: 'car', rating: 2, review: 'AC barely worked and there was a strong smell inside. Not what I expected for the price.', booking_id: 4399, created_at: '2026-05-15T08:11:00Z', author_type: 'client', author_id: 9, author_name: 'Brian Otieno', subject_type: 'car', subject_id: 19, subject_name: 'Mazda Demio 2016' },
-    { id: 105, type: 'host', rating: 1, review: 'Cancelled on me 30 minutes before pickup with no real explanation. Very disappointed.', booking_id: 4391, created_at: '2026-05-14T19:47:00Z', author_type: 'client', author_id: 11, author_name: 'Aisha Hassan', subject_type: 'host', subject_id: 14, subject_name: 'Daniel Kiprop' },
-    { id: 106, type: 'client', rating: 3, review: 'Returned a bit late and the fuel level was lower than agreed.', booking_id: 4382, created_at: '2026-05-12T15:21:00Z', author_type: 'host', author_id: 14, author_name: 'Daniel Kiprop', subject_type: 'client', subject_id: 22, subject_name: 'Samuel Kariuki' },
-    { id: 107, type: 'car', rating: 5, review: 'Perfect for a city trip — fuel efficient and easy to park.', booking_id: 4375, created_at: '2026-05-11T07:55:00Z', author_type: 'client', author_id: 5, author_name: 'Linda Wanjiku', subject_type: 'car', subject_id: 8, subject_name: 'Honda Fit 2019' },
-    { id: 108, type: 'car', rating: 4, review: 'Solid car overall. Slight scratch on the bumper but nothing major.', booking_id: 4360, created_at: '2026-05-09T22:12:00Z', author_type: 'client', author_id: 17, author_name: 'Kevin Mutua', subject_type: 'car', subject_id: 31, subject_name: 'Nissan Note 2017' },
-    { id: 109, type: 'host', rating: 5, review: 'Super flexible with pickup time and very friendly. Will book again.', booking_id: 4360, created_at: '2026-05-09T22:08:00Z', author_type: 'client', author_id: 17, author_name: 'Kevin Mutua', subject_type: 'host', subject_id: 21, subject_name: 'Mercy Adhiambo' },
-    { id: 110, type: 'client', rating: 2, review: 'Smoked inside the car despite my house rules. Had to pay extra cleaning.', booking_id: 4355, created_at: '2026-05-08T14:40:00Z', author_type: 'host', author_id: 21, author_name: 'Mercy Adhiambo', subject_type: 'client', subject_id: 27, subject_name: 'Vincent Owino' },
-    { id: 111, type: 'car', rating: 3, review: 'Decent car but the infotainment system kept rebooting.', booking_id: 4340, created_at: '2026-05-06T10:05:00Z', author_type: 'client', author_id: 6, author_name: 'Faith Wambui', subject_type: 'car', subject_id: 44, subject_name: 'Subaru Forester 2015' },
-    { id: 112, type: 'host', rating: 4, review: 'Helpful and answered all my questions. The keys handover was quick.', booking_id: 4340, created_at: '2026-05-06T10:02:00Z', author_type: 'client', author_id: 6, author_name: 'Faith Wambui', subject_type: 'host', subject_id: 9, subject_name: 'James Njoroge' },
-    { id: 113, type: 'car', rating: 1, review: 'Tyre burst on the highway. Definitely not road-ready. Reported to support.', booking_id: 4328, created_at: '2026-05-04T18:33:00Z', author_type: 'client', author_id: 33, author_name: 'Naomi Chebet', subject_type: 'car', subject_id: 52, subject_name: 'Toyota Axio 2014' },
-    { id: 114, type: 'client', rating: 5, review: 'One of the best clients I have hosted. Took photos before and after.', booking_id: 4315, created_at: '2026-05-02T11:18:00Z', author_type: 'host', author_id: 9, author_name: 'James Njoroge', subject_type: 'client', subject_id: 41, subject_name: 'Eric Mboya' },
-    { id: 115, type: 'car', rating: 5, review: 'Felt brand new. Tank was full and the host even left bottled water.', booking_id: 4302, created_at: '2026-04-29T09:50:00Z', author_type: 'client', author_id: 41, author_name: 'Eric Mboya', subject_type: 'car', subject_id: 67, subject_name: 'Volkswagen Polo 2020' },
-    { id: 116, type: 'host', rating: 2, review: 'Kept changing the meeting point at the last minute. Stressful experience.', booking_id: 4290, created_at: '2026-04-27T13:25:00Z', author_type: 'client', author_id: 19, author_name: 'Cynthia Achieng', subject_type: 'host', subject_id: 30, subject_name: 'Robert Kamau' },
-    { id: 117, type: 'client', rating: 4, review: 'Returned with a small dent but admitted to it and paid up. Honest.', booking_id: 4275, created_at: '2026-04-24T20:11:00Z', author_type: 'host', author_id: 30, author_name: 'Robert Kamau', subject_type: 'client', subject_id: 19, subject_name: 'Cynthia Achieng' },
-    { id: 118, type: 'car', rating: 4, review: 'Spacious and comfortable for a road trip to Naivasha.', booking_id: 4260, created_at: '2026-04-22T07:00:00Z', author_type: 'client', author_id: 25, author_name: 'Mark Otieno', subject_type: 'car', subject_id: 73, subject_name: 'Toyota Prado 2018' },
-    { id: 119, type: 'host', rating: 5, review: 'Honestly the smoothest rental I have done. 10/10.', booking_id: 4260, created_at: '2026-04-22T06:58:00Z', author_type: 'client', author_id: 25, author_name: 'Mark Otieno', subject_type: 'host', subject_id: 36, subject_name: 'Patricia Nduta' },
-    { id: 120, type: 'car', rating: 3, review: 'Older model than the photos suggested. Otherwise drove fine.', booking_id: 4244, created_at: '2026-04-19T16:42:00Z', author_type: 'client', author_id: 4, author_name: 'George Onyango', subject_type: 'car', subject_id: 88, subject_name: 'Nissan Tiida 2012' },
-    { id: 121, type: 'client', rating: 5, review: 'Always replies fast and returns cars in top condition. Highly recommended.', booking_id: 4231, created_at: '2026-04-17T08:30:00Z', author_type: 'host', author_id: 36, author_name: 'Patricia Nduta', subject_type: 'client', subject_id: 25, subject_name: 'Mark Otieno' },
-    { id: 122, type: 'host', rating: 3, review: 'Average experience. Nothing wrong, nothing memorable either.', booking_id: 4218, created_at: '2026-04-15T19:09:00Z', author_type: 'client', author_id: 12, author_name: 'Stephanie Wairimu', subject_type: 'host', subject_id: 18, subject_name: 'Anthony Mutiso' },
-    { id: 123, type: 'car', rating: 5, review: 'Tinted windows, leather seats, and a powerful engine. Loved it!', booking_id: 4205, created_at: '2026-04-13T11:55:00Z', author_type: 'client', author_id: 28, author_name: 'Mike Wanyama', subject_type: 'car', subject_id: 95, subject_name: 'Mercedes-Benz C200 2019' },
-];
-
-const MOCK_CONTACTS = [
-    { client_id: 3,  client_name: 'Jane Doe',          client_email: 'jane@example.com',         client_phone: '+254712345678', secondary_contact_names: 'John Doe',           secondary_contact_phone: '+254700111222', status: 'verified',     verified_at: '2026-05-02T10:20:00Z', otp_expires_at: null },
-    { client_id: 5,  client_name: 'Linda Wanjiku',     client_email: 'linda.w@example.com',      client_phone: '+254721555444', secondary_contact_names: 'Mary Wanjiku',       secondary_contact_phone: '+254700333555', status: 'verified',     verified_at: '2026-04-29T16:11:00Z', otp_expires_at: null },
-    { client_id: 6,  client_name: 'Faith Wambui',      client_email: 'faith.w@example.com',      client_phone: '+254733002211', secondary_contact_names: 'Joseph Mwangi',      secondary_contact_phone: '+254700777888', status: 'otp_sent',     verified_at: null,                    otp_expires_at: '2026-05-22T18:00:00Z' },
-    { client_id: 9,  client_name: 'Brian Otieno',      client_email: 'brian.o@example.com',      client_phone: '+254700123987', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 11, client_name: 'Aisha Hassan',      client_email: 'aisha.h@example.com',      client_phone: '+254712909090', secondary_contact_names: 'Said Hassan',        secondary_contact_phone: '+254700909090', status: 'verified',     verified_at: '2026-04-25T08:45:00Z', otp_expires_at: null },
-    { client_id: 12, client_name: 'Stephanie Wairimu', client_email: 'steph.w@example.com',      client_phone: '+254722111000', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 17, client_name: 'Kevin Mutua',       client_email: 'kevin.m@example.com',      client_phone: '+254700414141', secondary_contact_names: 'Esther Mutua',       secondary_contact_phone: '+254700414242', status: 'verified',     verified_at: '2026-04-18T14:00:00Z', otp_expires_at: null },
-    { client_id: 19, client_name: 'Cynthia Achieng',   client_email: 'cynthia.a@example.com',    client_phone: '+254711445566', secondary_contact_names: 'Beatrice Achieng',   secondary_contact_phone: '+254700556677', status: 'otp_sent',     verified_at: null,                    otp_expires_at: '2026-05-21T12:30:00Z' },
-    { client_id: 22, client_name: 'Samuel Kariuki',    client_email: 'sam.k@example.com',        client_phone: '+254733998877', secondary_contact_names: 'Lucy Kariuki',       secondary_contact_phone: '+254700887766', status: 'verified',     verified_at: '2026-04-10T09:30:00Z', otp_expires_at: null },
-    { client_id: 25, client_name: 'Mark Otieno',       client_email: 'mark.o@example.com',      client_phone: '+254722121212', secondary_contact_names: 'Grace Otieno',       secondary_contact_phone: '+254700131313', status: 'verified',     verified_at: '2026-04-02T18:22:00Z', otp_expires_at: null },
-    { client_id: 27, client_name: 'Vincent Owino',     client_email: 'vincent.o@example.com',    client_phone: '+254700656565', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 28, client_name: 'Mike Wanyama',      client_email: 'mike.w@example.com',      client_phone: '+254712020202', secondary_contact_names: 'Caroline Wanyama',   secondary_contact_phone: '+254700020203', status: 'verified',     verified_at: '2026-03-28T11:11:00Z', otp_expires_at: null },
-    { client_id: 33, client_name: 'Naomi Chebet',      client_email: 'naomi.c@example.com',      client_phone: '+254733676767', secondary_contact_names: 'Eric Chebet',        secondary_contact_phone: '+254700676868', status: 'otp_sent',     verified_at: null,                    otp_expires_at: '2026-05-20T20:00:00Z' },
-    { client_id: 41, client_name: 'Eric Mboya',        client_email: 'eric.m@example.com',      client_phone: '+254711343434', secondary_contact_names: 'Akinyi Mboya',       secondary_contact_phone: '+254700343535', status: 'verified',     verified_at: '2026-03-19T07:50:00Z', otp_expires_at: null },
-    { client_id: 47, client_name: 'Diana Njeri',       client_email: 'diana.n@example.com',      client_phone: '+254700818181', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 52, client_name: 'Andrew Kibet',      client_email: 'andrew.k@example.com',    client_phone: '+254722858585', secondary_contact_names: 'Rose Kibet',         secondary_contact_phone: '+254700858686', status: 'verified',     verified_at: '2026-03-12T13:00:00Z', otp_expires_at: null },
-    { client_id: 58, client_name: 'Hellen Atieno',     client_email: 'hellen.a@example.com',    client_phone: '+254712747474', secondary_contact_names: 'Paul Atieno',        secondary_contact_phone: '+254700747575', status: 'otp_sent',     verified_at: null,                    otp_expires_at: '2026-05-23T09:00:00Z' },
-    { client_id: 63, client_name: 'Tony Maina',        client_email: 'tony.m@example.com',      client_phone: '+254700626262', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 70, client_name: 'Margaret Nyambura', client_email: 'margaret.n@example.com',  client_phone: '+254733515151', secondary_contact_names: 'David Nyambura',     secondary_contact_phone: '+254700515252', status: 'verified',     verified_at: '2026-02-28T15:40:00Z', otp_expires_at: null },
-    { client_id: 78, client_name: 'Ali Mohammed',      client_email: 'ali.m@example.com',       client_phone: '+254712393939', secondary_contact_names: 'Fatuma Mohammed',    secondary_contact_phone: '+254700393940', status: 'verified',     verified_at: '2026-02-21T08:05:00Z', otp_expires_at: null },
-    { client_id: 84, client_name: 'Christine Were',    client_email: 'christine.w@example.com', client_phone: '+254700272727', secondary_contact_names: null,                 secondary_contact_phone: null,            status: 'not_started',  verified_at: null,                    otp_expires_at: null },
-    { client_id: 91, client_name: 'Brenda Cherono',    client_email: 'brenda.c@example.com',    client_phone: '+254733161616', secondary_contact_names: 'Mike Cherono',       secondary_contact_phone: '+254700161717', status: 'otp_sent',     verified_at: null,                    otp_expires_at: '2026-05-24T11:30:00Z' },
-];
-
-function mockRatingsStats() {
-    const groups = { car: [], host: [], client: [] };
-    MOCK_RATINGS.forEach(r => { if (groups[r.type]) groups[r.type].push(r.rating); });
-    const avg = arr => arr.length ? arr.reduce((a, b) => a + b, 0) / arr.length : null;
-    return {
-        car_count: groups.car.length,    car_average: avg(groups.car),
-        host_count: groups.host.length,  host_average: avg(groups.host),
-        client_count: groups.client.length, client_average: avg(groups.client),
-    };
-}
-
-function mockRatingsList(params) {
-    let rows = MOCK_RATINGS.slice();
-    if (params.type) rows = rows.filter(r => r.type === params.type);
-    if (params.rating_value) rows = rows.filter(r => r.rating === Number(params.rating_value));
-    if (params.search) {
-        const q = String(params.search).toLowerCase();
-        rows = rows.filter(r =>
-            (r.author_name || '').toLowerCase().includes(q) ||
-            (r.subject_name || '').toLowerCase().includes(q) ||
-            (r.review || '').toLowerCase().includes(q)
-        );
-    }
-    rows.sort((a, b) => {
-        const av = new Date(a.created_at).getTime();
-        const bv = new Date(b.created_at).getTime();
-        return params.order === 'asc' ? av - bv : bv - av;
-    });
-    const total = rows.length;
-    const limit = params.limit || MOD_PAGE_SIZE;
-    const page = params.page || 1;
-    const start = (page - 1) * limit;
-    return {
-        items: rows.slice(start, start + limit),
-        total,
-        total_pages: Math.max(1, Math.ceil(total / limit)),
-        page,
-    };
-}
-
-function mockSecondaryContactsStats() {
-    const verified = MOCK_CONTACTS.filter(c => c.status === 'verified').length;
-    const otpSent = MOCK_CONTACTS.filter(c => c.status === 'otp_sent').length;
-    const notStarted = MOCK_CONTACTS.filter(c => c.status === 'not_started').length;
-    return { total_clients: MOCK_CONTACTS.length, verified, otp_sent: otpSent, not_started: notStarted };
-}
-
-function mockSecondaryContactsList(params) {
-    let rows = MOCK_CONTACTS.slice();
-    if (params.status_filter) rows = rows.filter(r => r.status === params.status_filter);
-    if (params.has_contact === 'true') rows = rows.filter(r => r.status !== 'not_started');
-    if (params.has_contact === 'false') rows = rows.filter(r => r.status === 'not_started');
-    if (params.search) {
-        const q = String(params.search).toLowerCase();
-        rows = rows.filter(r =>
-            (r.client_name || '').toLowerCase().includes(q) ||
-            (r.client_email || '').toLowerCase().includes(q) ||
-            (r.client_phone || '').toLowerCase().includes(q) ||
-            (r.secondary_contact_names || '').toLowerCase().includes(q) ||
-            (r.secondary_contact_phone || '').toLowerCase().includes(q)
-        );
-    }
-    rows.sort((a, b) => params.order === 'asc' ? a.client_id - b.client_id : b.client_id - a.client_id);
-    const total = rows.length;
-    const limit = params.limit || MOD_PAGE_SIZE;
-    const page = params.page || 1;
-    const start = (page - 1) * limit;
-    return {
-        items: rows.slice(start, start + limit),
-        total,
-        total_pages: Math.max(1, Math.ceil(total / limit)),
-        page,
-    };
-}
-
-// Tiny delay so the "Loading…" state is briefly visible
-const mockDelay = (ms = 250) => new Promise(r => setTimeout(r, ms));
-// ─── END MOCK DATA ───────────────────────────────────────────────────────
-
 function initModerationPage() {
     if (!moderationInited) {
         bindModerationFilters();
@@ -5228,9 +5095,7 @@ async function loadRatingsStats() {
     const row = document.getElementById('ratingsStatsRow');
     if (!row) return;
     try {
-        // const stats = await api.getRatingsStats();
-        await mockDelay(150);
-        const stats = mockRatingsStats();
+        const stats = await api.getRatingsStats();
         const total = (stats.car_count || 0) + (stats.host_count || 0) + (stats.client_count || 0);
         const fmtAvg = v => (v == null ? '—' : Number(v).toFixed(2));
         row.innerHTML = `
@@ -5273,15 +5138,14 @@ async function loadRatings() {
     if (ratingsState.search) params.search = ratingsState.search;
 
     try {
-        // const data = await api.getRatings(params);
-        await mockDelay();
-        const data = mockRatingsList(params);
+        const data = await api.getRatings(params);
         const items = data.items || data.ratings || [];
         const total = data.total || 0;
         const totalPages = data.total_pages || Math.max(1, Math.ceil(total / MOD_PAGE_SIZE));
 
         if (items.length === 0) {
-            container.innerHTML = '<div class="mod-empty">No ratings match these filters.</div>';
+            const filtered = !!(ratingsState.type || ratingsState.rating || ratingsState.search);
+            container.innerHTML = `<div class="mod-empty">${filtered ? 'No ratings match these filters.' : 'No ratings have been submitted yet.'}</div>`;
             return;
         }
 
@@ -5332,10 +5196,7 @@ async function openRatingDetail(ratingType, ratingId) {
     modDrawerContext = { kind: 'rating', ratingType, ratingId };
     showModerationDrawer('Rating detail', '<div class="loading">Loading...</div>', '');
     try {
-        // const item = await api.getRating(ratingType, ratingId);
-        await mockDelay(180);
-        const item = MOCK_RATINGS.find(r => r.type === ratingType && r.id === Number(ratingId));
-        if (!item) throw new Error('Rating not found');
+        const item = await api.getRating(ratingType, ratingId);
         const body = `
             <div class="mod-field">
                 <div class="mod-field-label">Rating</div>
@@ -5381,10 +5242,7 @@ async function deleteRatingFromDrawer() {
     const btn = footer ? footer.querySelector('button') : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Deleting…'; }
     try {
-        // await api.deleteRating(modDrawerContext.ratingType, modDrawerContext.ratingId);
-        await mockDelay(250);
-        const idx = MOCK_RATINGS.findIndex(r => r.type === modDrawerContext.ratingType && r.id === Number(modDrawerContext.ratingId));
-        if (idx !== -1) MOCK_RATINGS.splice(idx, 1);
+        await api.deleteRating(modDrawerContext.ratingType, modDrawerContext.ratingId);
         closeModerationDrawer();
         loadRatings();
         loadRatingsStats();
@@ -5399,9 +5257,7 @@ async function loadSecondaryContactsStats() {
     const row = document.getElementById('contactsStatsRow');
     if (!row) return;
     try {
-        // const stats = await api.getSecondaryContactsStats();
-        await mockDelay(150);
-        const stats = mockSecondaryContactsStats();
+        const stats = await api.getSecondaryContactsStats();
         const verified = stats.verified || 0;
         const otpSent = stats.otp_sent || 0;
         const notStarted = stats.not_started || 0;
@@ -5446,15 +5302,14 @@ async function loadSecondaryContacts() {
     if (contactsState.search) params.search = contactsState.search;
 
     try {
-        // const data = await api.getSecondaryContacts(params);
-        await mockDelay();
-        const data = mockSecondaryContactsList(params);
+        const data = await api.getSecondaryContacts(params);
         const items = data.items || data.contacts || [];
         const total = data.total || 0;
         const totalPages = data.total_pages || Math.max(1, Math.ceil(total / MOD_PAGE_SIZE));
 
         if (items.length === 0) {
-            container.innerHTML = '<div class="mod-empty">No clients match these filters.</div>';
+            const filtered = !!(contactsState.status || contactsState.hasContact || contactsState.search);
+            container.innerHTML = `<div class="mod-empty">${filtered ? 'No clients match these filters.' : 'No clients to show.'}</div>`;
             return;
         }
 
@@ -5505,10 +5360,7 @@ async function openSecondaryContactDetail(clientId) {
     modDrawerContext = { kind: 'contact', clientId };
     showModerationDrawer('Secondary contact', '<div class="loading">Loading...</div>', '');
     try {
-        // const item = await api.getSecondaryContact(clientId);
-        await mockDelay(180);
-        const item = MOCK_CONTACTS.find(c => c.client_id === Number(clientId));
-        if (!item) throw new Error('Client not found');
+        const item = await api.getSecondaryContact(clientId);
         const body = `
             <div class="mod-field">
                 <div class="mod-field-label">Client</div>
@@ -5559,16 +5411,7 @@ async function clearSecondaryContactFromDrawer() {
     const btn = footer ? footer.querySelector('button') : null;
     if (btn) { btn.disabled = true; btn.textContent = 'Clearing…'; }
     try {
-        // await api.clearSecondaryContact(modDrawerContext.clientId);
-        await mockDelay(250);
-        const c = MOCK_CONTACTS.find(x => x.client_id === Number(modDrawerContext.clientId));
-        if (c) {
-            c.secondary_contact_names = null;
-            c.secondary_contact_phone = null;
-            c.status = 'not_started';
-            c.verified_at = null;
-            c.otp_expires_at = null;
-        }
+        await api.clearSecondaryContact(modDrawerContext.clientId);
         closeModerationDrawer();
         loadSecondaryContacts();
         loadSecondaryContactsStats();
