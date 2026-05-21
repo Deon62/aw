@@ -363,6 +363,8 @@ function backToHostsList() {
 let verifiedHostsChart = null;
 let verifiedClientsChart = null;
 let verificationStatusChart = null;
+let bookingOutcomesChart = null;
+let bookingsVolumeChart = null;
 let revenueStreamChart = null;
 let moneyFlowChart = null;
 let paidBookingsChart = null;
@@ -427,6 +429,8 @@ async function loadDashboard() {
         createVerifiedHostsChart(normalizeKycSeries(kyc.hosts));
         createVerifiedClientsChart(normalizeKycSeries(kyc.clients));
         createVerificationStatusChart(stats);
+        createBookingOutcomesChart(getMockBookingOutcomes());
+        createBookingsVolumeChart(getMockBookingsVolume());
     } catch (error) {
         console.error('Error loading dashboard:', error);
         statsGrid.innerHTML = '<div class="empty-state">Error loading statistics</div>';
@@ -651,6 +655,178 @@ function createVerificationStatusChart(stats) {
                 return `<span class="legend-chip"><span class="legend-dot" style="background:${s.color}"></span>${s.label} · ${s.value} (${pct}%)</span>`;
             })
             .join('');
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Booking analytics — mock data for now. Replace getMockBookingOutcomes /
+// getMockBookingsVolume with calls to the admin bookings API when available.
+// ---------------------------------------------------------------------------
+function getMockBookingOutcomes() {
+    const weeks = 12;
+    const labels = [];
+    const successful = [];
+    const cancelledByHost = [];
+    const cancelledByClient = [];
+    const today = new Date();
+    for (let i = weeks - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i * 7);
+        labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        const base = 60 + Math.round(i * 1.5);
+        successful.push(base + Math.round(Math.sin(i / 1.4) * 18) + 30);
+        cancelledByHost.push(6 + Math.round(Math.abs(Math.cos(i / 1.8)) * 7));
+        cancelledByClient.push(10 + Math.round(Math.abs(Math.sin(i / 1.1)) * 9));
+    }
+    return { labels, successful, cancelledByHost, cancelledByClient };
+}
+
+function getMockBookingsVolume() {
+    const days = 30;
+    const labels = [];
+    const totals = [];
+    const today = new Date();
+    let running = 18;
+    for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(today);
+        d.setDate(d.getDate() - i);
+        labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
+        running += Math.round(Math.sin(i / 3) * 4) + (Math.random() < 0.5 ? 1 : -1) + 1;
+        totals.push(Math.max(8, running));
+    }
+    return { labels, totals };
+}
+
+function createBookingOutcomesChart(data) {
+    const canvas = document.getElementById('bookingOutcomesChart');
+    if (!canvas) return;
+    if (bookingOutcomesChart) bookingOutcomesChart.destroy();
+
+    const ctx = canvas.getContext('2d');
+    const series = [
+        { label: 'Successful', data: data.successful, color: 'rgba(16, 185, 129, 1)' },
+        { label: 'Cancelled by host', data: data.cancelledByHost, color: 'rgba(239, 68, 68, 1)' },
+        { label: 'Cancelled by client', data: data.cancelledByClient, color: 'rgba(245, 158, 11, 1)' },
+    ];
+
+    bookingOutcomesChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: series.map(s => ({
+                label: s.label,
+                data: s.data,
+                borderColor: s.color,
+                backgroundColor: 'transparent',
+                fill: false,
+                tension: 0.4,
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 5,
+                pointHoverBackgroundColor: s.color,
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2,
+            })),
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    padding: 10,
+                    backgroundColor: 'rgba(17, 24, 39, 0.92)',
+                    titleFont: { size: 12, weight: '600' },
+                    bodyFont: { size: 12 },
+                    cornerRadius: 6,
+                    displayColors: true,
+                },
+            },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { font: { size: 10 }, color: '#9ca3af', maxRotation: 0, autoSkipPadding: 14 } },
+                y: { beginAtZero: true, grid: { color: 'rgba(17, 24, 39, 0.05)', drawBorder: false }, ticks: { font: { size: 10 }, color: '#9ca3af', precision: 0 } },
+            },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+        },
+    });
+
+    const legendEl = document.getElementById('bookingOutcomesLegend');
+    if (legendEl) {
+        legendEl.innerHTML = series
+            .map(s => `<span class="legend-chip"><span class="legend-dot" style="background:${s.color}"></span>${s.label}</span>`)
+            .join('');
+    }
+
+    const subtitle = document.getElementById('bookingOutcomesSubtitle');
+    if (subtitle) {
+        const lastSuccess = data.successful[data.successful.length - 1] || 0;
+        const lastHost = data.cancelledByHost[data.cancelledByHost.length - 1] || 0;
+        const lastClient = data.cancelledByClient[data.cancelledByClient.length - 1] || 0;
+        const denom = lastSuccess + lastHost + lastClient;
+        const cancelRate = denom > 0 ? Math.round(((lastHost + lastClient) / denom) * 100) : 0;
+        subtitle.textContent = `Mock · this week ${lastSuccess} successful · ${cancelRate}% cancel rate`;
+    }
+}
+
+function createBookingsVolumeChart(data) {
+    const canvas = document.getElementById('bookingsVolumeChart');
+    if (!canvas) return;
+    if (bookingsVolumeChart) bookingsVolumeChart.destroy();
+
+    const ctx = canvas.getContext('2d');
+    const height = canvas.height || 220;
+    const gradient = ctx.createLinearGradient(0, 0, 0, height);
+    gradient.addColorStop(0, 'rgba(37, 99, 235, 0.30)');
+    gradient.addColorStop(1, 'rgba(37, 99, 235, 0.02)');
+
+    bookingsVolumeChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: data.labels,
+            datasets: [{
+                label: 'Bookings',
+                data: data.totals,
+                borderColor: 'rgba(37, 99, 235, 1)',
+                backgroundColor: gradient,
+                fill: true,
+                tension: 0.4,
+                borderWidth: 2.5,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointHoverBackgroundColor: 'rgba(37, 99, 235, 1)',
+                pointHoverBorderColor: '#fff',
+                pointHoverBorderWidth: 2,
+            }],
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: { intersect: false, mode: 'index' },
+            plugins: {
+                legend: { display: false },
+                tooltip: {
+                    padding: 10,
+                    backgroundColor: 'rgba(17, 24, 39, 0.92)',
+                    titleFont: { size: 12, weight: '600' },
+                    bodyFont: { size: 12 },
+                    cornerRadius: 6,
+                    displayColors: false,
+                },
+            },
+            scales: {
+                x: { grid: { display: false, drawBorder: false }, ticks: { font: { size: 10 }, color: '#9ca3af', maxRotation: 0, autoSkipPadding: 16 } },
+                y: { beginAtZero: true, grid: { color: 'rgba(17, 24, 39, 0.05)', drawBorder: false }, ticks: { font: { size: 10 }, color: '#9ca3af', precision: 0 } },
+            },
+            animation: { duration: 900, easing: 'easeOutQuart' },
+        },
+    });
+
+    const subtitle = document.getElementById('bookingsVolumeSubtitle');
+    if (subtitle) {
+        const last = data.totals[data.totals.length - 1] || 0;
+        const total = data.totals.reduce((a, b) => a + b, 0);
+        subtitle.textContent = `Mock · last 30 days · ${total.toLocaleString()} total · ${last} today`;
     }
 }
 
