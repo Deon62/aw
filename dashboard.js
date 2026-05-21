@@ -399,11 +399,15 @@ async function loadDashboard() {
     const statsGrid = document.getElementById('statsGrid');
 
     try {
-        const [stats, kyc] = await Promise.all([
+        const [stats, kyc, bookingTrends] = await Promise.all([
             api.getDashboardStats(),
             api.getKycTrends().catch(err => {
                 console.error('Failed to load KYC trends:', err);
                 return { hosts: [], clients: [] };
+            }),
+            api.getBookingTrends(14).catch(err => {
+                console.error('Failed to load booking trends:', err);
+                return null;
             }),
         ]);
 
@@ -433,8 +437,10 @@ async function loadDashboard() {
         createVerifiedHostsChart(normalizeKycSeries(kyc.hosts));
         createVerifiedClientsChart(normalizeKycSeries(kyc.clients));
         createVerificationStatusChart(stats);
-        createBookingOutcomesChart(getMockBookingOutcomes());
-        createBookingsVolumeChart(getMockBookingsVolume());
+        if (bookingTrends) {
+            createBookingOutcomesChart(normalizeBookingOutcomes(bookingTrends));
+            createBookingsVolumeChart(normalizeBookingsTrend(bookingTrends));
+        }
     } catch (error) {
         console.error('Error loading dashboard:', error);
         statsGrid.innerHTML = '<div class="empty-state">Error loading statistics</div>';
@@ -663,42 +669,40 @@ function createVerificationStatusChart(stats) {
 }
 
 // ---------------------------------------------------------------------------
-// Booking analytics — mock data for now. Replace getMockBookingOutcomes /
-// getMockBookingsVolume with calls to the admin bookings API when available.
+// Booking analytics — backed by GET /admin/dashboard/booking-trends?days=14.
+// Response shape: { outcomes: [{date, successful, cancelled_by_host,
+// cancelled_by_client}], trend: [{date, bookings}], totals: {...} }
 // ---------------------------------------------------------------------------
-function getMockBookingOutcomes() {
-    const weeks = 12;
-    const labels = [];
-    const successful = [];
-    const cancelledByHost = [];
-    const cancelledByClient = [];
-    const today = new Date();
-    for (let i = weeks - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i * 7);
-        labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-        const base = 60 + Math.round(i * 1.5);
-        successful.push(base + Math.round(Math.sin(i / 1.4) * 18) + 30);
-        cancelledByHost.push(6 + Math.round(Math.abs(Math.cos(i / 1.8)) * 7));
-        cancelledByClient.push(10 + Math.round(Math.abs(Math.sin(i / 1.1)) * 9));
-    }
-    return { labels, successful, cancelledByHost, cancelledByClient };
+function formatBookingDateLabel(value) {
+    const d = new Date(value);
+    if (isNaN(d)) return value;
+    return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
-function getMockBookingsVolume() {
-    const days = 30;
-    const labels = [];
-    const totals = [];
-    const today = new Date();
-    let running = 18;
-    for (let i = days - 1; i >= 0; i--) {
-        const d = new Date(today);
-        d.setDate(d.getDate() - i);
-        labels.push(d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }));
-        running += Math.round(Math.sin(i / 3) * 4) + (Math.random() < 0.5 ? 1 : -1) + 1;
-        totals.push(Math.max(8, running));
-    }
-    return { labels, totals };
+function normalizeBookingOutcomes(resp) {
+    const outcomes = Array.isArray(resp?.outcomes) ? resp.outcomes : [];
+    const totals = resp?.totals || {};
+    return {
+        labels: outcomes.map(o => formatBookingDateLabel(o.date)),
+        successful: outcomes.map(o => o.successful || 0),
+        cancelledByHost: outcomes.map(o => o.cancelled_by_host || 0),
+        cancelledByClient: outcomes.map(o => o.cancelled_by_client || 0),
+        totalSuccessful: totals.successful || 0,
+        totalCancelledByHost: totals.cancelled_by_host || 0,
+        totalCancelledByClient: totals.cancelled_by_client || 0,
+        days: resp?.days || outcomes.length,
+    };
+}
+
+function normalizeBookingsTrend(resp) {
+    const trend = Array.isArray(resp?.trend) ? resp.trend : [];
+    const totals = resp?.totals || {};
+    return {
+        labels: trend.map(t => formatBookingDateLabel(t.date)),
+        totals: trend.map(t => t.bookings || 0),
+        totalCreated: totals.bookings_created || 0,
+        days: resp?.days || trend.length,
+    };
 }
 
 function createBookingOutcomesChart(data) {
@@ -764,12 +768,13 @@ function createBookingOutcomesChart(data) {
 
     const subtitle = document.getElementById('bookingOutcomesSubtitle');
     if (subtitle) {
-        const lastSuccess = data.successful[data.successful.length - 1] || 0;
-        const lastHost = data.cancelledByHost[data.cancelledByHost.length - 1] || 0;
-        const lastClient = data.cancelledByClient[data.cancelledByClient.length - 1] || 0;
-        const denom = lastSuccess + lastHost + lastClient;
-        const cancelRate = denom > 0 ? Math.round(((lastHost + lastClient) / denom) * 100) : 0;
-        subtitle.textContent = `Mock · this week ${lastSuccess} successful · ${cancelRate}% cancel rate`;
+        const days = data.days || data.labels.length;
+        const success = data.totalSuccessful || 0;
+        const host = data.totalCancelledByHost || 0;
+        const client = data.totalCancelledByClient || 0;
+        const denom = success + host + client;
+        const cancelRate = denom > 0 ? Math.round(((host + client) / denom) * 100) : 0;
+        subtitle.textContent = `Last ${days} days · ${success.toLocaleString()} successful · ${cancelRate}% cancel rate`;
     }
 }
 
@@ -828,9 +833,10 @@ function createBookingsVolumeChart(data) {
 
     const subtitle = document.getElementById('bookingsVolumeSubtitle');
     if (subtitle) {
+        const days = data.days || data.labels.length;
         const last = data.totals[data.totals.length - 1] || 0;
-        const total = data.totals.reduce((a, b) => a + b, 0);
-        subtitle.textContent = `Mock · last 30 days · ${total.toLocaleString()} total · ${last} today`;
+        const total = data.totalCreated || data.totals.reduce((a, b) => a + b, 0);
+        subtitle.textContent = `Last ${days} days · ${total.toLocaleString()} total · ${last} today`;
     }
 }
 

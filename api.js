@@ -95,6 +95,7 @@ const api = {
     getVerificationQueueStats: () => apiRequest('/admin/dashboard/verification-queue'),
     getRevenueStats: () => apiRequest('/admin/dashboard/revenue'),
     getKycTrends: () => apiRequest('/admin/dashboard/kyc-trends'),
+    getBookingTrends: (days = 14) => apiRequest(`/admin/dashboard/booking-trends?days=${days}`),
 
     // Hosts
     getHosts: (params = {}) => {
